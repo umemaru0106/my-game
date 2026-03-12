@@ -1,0 +1,3935 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>族鬼列伝 ZOKKOU RETSUDEN</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Antique+Soft&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1a1008;--paper:#f5e8c8;--red:#c0392b;--gold:#d4a017;
+  --blue:#1a3a5c;--shadow:#0a0804;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#0a0804;display:flex;align-items:center;justify-content:center;
+  min-height:100vh;overflow:hidden;font-family:'Zen Antique Soft',serif}
+canvas{display:block;touch-action:none;image-rendering:pixelated}
+#ui{position:fixed;inset:0;pointer-events:none;z-index:10}
+
+/* ── HUD ── */
+#hud{position:absolute;top:0;left:0;right:0;padding:8px 10px;
+  display:flex;align-items:flex-start;gap:8px;
+  background:linear-gradient(180deg,rgba(0,0,0,.7) 0%,transparent 100%)}
+.hud-panel{background:rgba(10,8,4,.75);border:1px solid rgba(212,160,23,.3);
+  border-radius:3px;padding:5px 8px;backdrop-filter:blur(2px)}
+.hud-name{font-size:.62rem;color:var(--gold);letter-spacing:.2em;margin-bottom:2px}
+.bar-wrap{width:110px;height:10px;background:#1a1008;border-radius:2px;overflow:hidden;border:1px solid #333}
+.bar-fill{height:100%;border-radius:2px;transition:width .1s}
+.hp-fill{background:linear-gradient(90deg,#c0392b,#e74c3c)}
+.sp-fill{background:linear-gradient(90deg,#d4a017,#f1c40f)}
+.hud-sub{font-size:.5rem;color:#666;margin-top:2px;font-family:'Share Tech Mono',monospace}
+#hud-center{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1}
+#stage-label{font-size:.65rem;color:var(--gold);letter-spacing:.3em;text-shadow:0 0 10px var(--gold)}
+#score-val{font-size:.9rem;color:#fff;font-family:'Share Tech Mono',monospace;letter-spacing:.1em}
+#ally-panel{display:flex;gap:5px}
+.ally-dot{width:10px;height:10px;border-radius:50%;background:#2a5a2a;border:1px solid #4a8a4a;transition:background .2s}
+.ally-dot.alive{background:#3a9a3a;box-shadow:0 0 4px #3a9a3a}
+.ally-dot.hurt{background:#8a4a1a}
+.sp-icons{display:flex;gap:2px;margin-top:2px}
+.sp-icon{font-size:.7rem;opacity:.3;transition:opacity .2s}
+.sp-icon.ready{opacity:1;filter:drop-shadow(0 0 3px #f1c40f)}
+
+/* ── ANNOUNCE ── */
+#announce{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);
+  font-size:clamp(2rem,9vw,4.5rem);color:#fff;letter-spacing:.15em;
+  pointer-events:none;opacity:0;white-space:nowrap;text-align:center;
+  text-shadow:3px 3px 0 #c0392b,6px 6px 0 rgba(0,0,0,.5)}
+#announce.show{opacity:1;animation:apop .3s ease}
+@keyframes apop{0%{transform:translate(-50%,-50%) scale(.2) rotate(-5deg)}
+  70%{transform:translate(-50%,-50%) scale(1.05) rotate(1deg)}
+  100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)}}
+#sub-announce{position:absolute;top:54%;left:50%;transform:translateX(-50%);
+  font-size:clamp(.8rem,3vw,1.3rem);color:var(--gold);letter-spacing:.3em;
+  pointer-events:none;opacity:0;white-space:nowrap}
+#sub-announce.show{opacity:1;animation:sfade 1.2s ease forwards}
+@keyframes sfade{0%{opacity:0;transform:translateX(-50%) translateY(8px)}
+  20%{opacity:1;transform:translateX(-50%) translateY(0)}
+  80%{opacity:1}100%{opacity:0}}
+
+/* ── SCREENS ── */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;pointer-events:all}
+.screen.hidden{display:none}
+.title-bg{position:absolute;inset:0;overflow:hidden}
+.title-bg::before{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,.01) 2px,rgba(255,255,255,.01) 4px)}
+.ink-title{font-size:clamp(2.5rem,11vw,6rem);text-align:center;line-height:.9;
+  color:#f5e8c8;text-shadow:4px 4px 0 #8b0000,8px 8px 0 rgba(0,0,0,.6);letter-spacing:.05em}
+.ink-title .sub{font-size:clamp(.9rem,3vw,1.6rem);color:var(--gold);letter-spacing:.5em;display:block;margin-top:6px}
+.ink-title .catch{font-size:clamp(.6rem,2vw,.9rem);color:#888;letter-spacing:.2em;display:block;margin-top:8px;font-family:'Share Tech Mono',monospace}
+
+.btn{padding:12px 32px;font-family:'Zen Antique Soft',serif;font-size:1rem;
+  letter-spacing:.2em;background:transparent;color:var(--paper);
+  border:2px solid rgba(212,160,23,.4);border-radius:2px;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden}
+.btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,
+  rgba(212,160,23,.1),transparent);opacity:0;transition:opacity .2s}
+.btn:hover,.btn:active{border-color:var(--gold);color:var(--gold);
+  box-shadow:0 0 20px rgba(212,160,23,.3),inset 0 0 20px rgba(212,160,23,.05)}
+.btn:hover::before{opacity:1}
+.btn.big{font-size:1.3rem;padding:14px 48px}
+.stage-select{display:flex;flex-direction:column;gap:8px;width:min(360px,90vw)}
+/* ── STAGE SELECT CAROUSEL ── */
+.stage-carousel-wrap{position:relative;z-index:1;width:100%;max-width:520px;margin:0 auto}
+.stage-carousel{display:flex;overflow:hidden;width:100%;position:relative}
+.stage-cards-track{display:flex;transition:transform .35s cubic-bezier(.4,0,.2,1);will-change:transform}
+.stage-card{flex:0 0 min(300px,80vw);margin:0 8px;
+  border:2px solid rgba(212,160,23,.25);border-radius:8px;overflow:hidden;
+  cursor:pointer;transition:border-color .2s,box-shadow .2s;position:relative;
+  background:#0a0804;user-select:none}
+.stage-card.active{border-color:var(--gold);box-shadow:0 0 18px rgba(212,160,23,.35)}
+.stage-card-preview{width:100%;height:90px;position:relative;overflow:hidden}
+.stage-card-preview canvas{width:100%;height:100%;display:block}
+.stage-card-body{padding:10px 12px 12px}
+.stage-card-num{font-size:.5rem;color:#555;letter-spacing:.3em;font-family:'Share Tech Mono',monospace}
+.stage-card-name{font-size:.95rem;color:var(--paper);letter-spacing:.12em;margin:2px 0}
+.stage-card-desc{font-size:.5rem;color:#666;letter-spacing:.08em;font-family:'Share Tech Mono',monospace;line-height:1.5}
+.stage-card-diff{font-size:.6rem;margin-top:6px;letter-spacing:.1em}
+.stage-card-boss{font-size:.5rem;color:#c0392b;letter-spacing:.08em;margin-top:4px;font-family:'Share Tech Mono',monospace}
+.carousel-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px;position:relative;z-index:1}
+.carousel-arrow{width:36px;height:36px;border:1px solid rgba(212,160,23,.4);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:var(--gold);font-size:1rem;transition:all .2s;background:rgba(0,0,0,.5)}
+.carousel-arrow:hover{border-color:var(--gold);background:rgba(212,160,23,.1)}
+.carousel-arrow:active{transform:scale(.9)}
+.carousel-dots{display:flex;gap:6px;align-items:center}
+.carousel-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);
+  transition:all .2s;cursor:pointer}
+.carousel-dot.on{background:var(--gold);transform:scale(1.3)}
+.stage-select-btn{margin-top:8px;padding:9px 36px;font-family:'Zen Antique Soft',serif;
+  font-size:.9rem;letter-spacing:.25em;background:transparent;color:var(--gold);
+  border:1px solid var(--gold);border-radius:3px;cursor:pointer;transition:all .2s;
+  position:relative;z-index:1}
+.stage-select-btn:hover{background:rgba(212,160,23,.1);box-shadow:0 0 14px rgba(212,160,23,.3)}
+.stage-btn{display:flex;align-items:center;gap:12px;padding:10px 16px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(212,160,23,.2);
+  border-radius:3px;cursor:pointer;transition:all .2s;pointer-events:all}
+.stage-btn:hover{border-color:var(--gold);background:rgba(212,160,23,.08)}
+.stage-thumb{width:48px;height:36px;border-radius:2px;flex-shrink:0;overflow:hidden;position:relative}
+.stage-info .sname{font-size:.9rem;color:var(--paper);letter-spacing:.1em}
+.stage-info .sdesc{font-size:.55rem;color:#666;letter-spacing:.1em;margin-top:2px;font-family:'Share Tech Mono',monospace}
+.stage-info .sdiff{font-size:.55rem;letter-spacing:.1em;margin-top:2px}
+.hint{font-size:.58rem;color:#444;letter-spacing:.08em;text-align:center;
+  line-height:2;font-family:'Share Tech Mono',monospace}
+.section-hd{font-size:.6rem;color:#555;letter-spacing:.4em;margin-top:4px}
+.result-box{background:rgba(10,8,4,.9);border:1px solid rgba(212,160,23,.3);
+  padding:20px 32px;border-radius:4px;text-align:center;min-width:260px}
+.result-box .rank{font-size:3rem;color:var(--gold);text-shadow:0 0 20px var(--gold)}
+.result-box .rtime{font-size:.8rem;color:#888;font-family:'Share Tech Mono',monospace;margin-top:4px}
+.result-box .rscore{font-size:1.2rem;color:#fff;margin-top:8px;letter-spacing:.1em}
+
+/* ── SETUP SCREEN ── */
+#setupScreen{position:absolute;inset:0;display:none;flex-direction:column;
+  align-items:center;justify-content:flex-start;gap:0;pointer-events:all;
+  overflow-y:auto;padding:10px 0 20px;
+  background:rgba(5,2,1,.96)}
+#setupScreen.active{display:flex}
+.setup-title{font-size:clamp(1rem,4vw,1.5rem);color:var(--gold);letter-spacing:.4em;
+  text-align:center;margin:8px 0 4px;text-shadow:0 0 12px var(--gold)}
+.setup-stage-name{font-size:.65rem;color:#888;letter-spacing:.3em;margin-bottom:12px;font-family:'Share Tech Mono',monospace}
+.setup-section{width:min(480px,94vw);margin-bottom:12px}
+.setup-sec-hd{font-size:.55rem;color:#555;letter-spacing:.5em;border-bottom:1px solid rgba(212,160,23,.15);
+  padding-bottom:4px;margin-bottom:8px;font-family:'Share Tech Mono',monospace}
+/* キャラカード */
+.char-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.char-card{border:2px solid rgba(255,255,255,.1);border-radius:6px;padding:6px 4px;
+  cursor:pointer;text-align:center;transition:all .15s;background:rgba(0,0,0,.4);
+  position:relative}
+.char-card:hover{border-color:rgba(212,160,23,.5);background:rgba(212,160,23,.06)}
+.char-card.selected{border-color:var(--gold);background:rgba(212,160,23,.12);
+  box-shadow:0 0 10px rgba(212,160,23,.3)}
+.char-card canvas{display:block;margin:0 auto}
+.char-card .cname{font-size:.55rem;color:var(--paper);letter-spacing:.1em;margin-top:3px}
+.char-card .ctype{font-size:.45rem;color:#666;font-family:'Share Tech Mono',monospace}
+.char-card .cstats{font-size:.42rem;color:#555;font-family:'Share Tech Mono',monospace;margin-top:2px}
+.char-card .sel-mark{position:absolute;top:2px;right:4px;font-size:.7rem;color:var(--gold);display:none}
+.char-card.selected .sel-mark{display:block}
+/* 味方カード */
+.ally-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.ally-card{border:2px solid rgba(255,255,255,.1);border-radius:6px;padding:6px 4px;
+  cursor:pointer;text-align:center;transition:all .15s;background:rgba(0,0,0,.4);
+  position:relative}
+.ally-card:hover{border-color:rgba(74,170,255,.4);background:rgba(74,170,255,.05)}
+.ally-card.selected{border-color:#4af;background:rgba(74,170,255,.1);
+  box-shadow:0 0 8px rgba(74,170,255,.25)}
+.ally-card canvas{display:block;margin:0 auto}
+.ally-card .cname{font-size:.55rem;color:var(--paper);letter-spacing:.1em;margin-top:3px}
+.ally-card .ctype{font-size:.42rem;color:#666;font-family:'Share Tech Mono',monospace}
+.ally-card .sel-num{position:absolute;top:2px;right:4px;font-size:.65rem;color:#4af;display:none}
+.ally-card.selected .sel-num{display:block}
+.ally-none{border-color:rgba(255,255,255,.06)!important;opacity:.5}
+.ally-limit{font-size:.48rem;color:#555;text-align:right;margin-top:3px;font-family:'Share Tech Mono',monospace}
+/* 武器カード */
+.wpn-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.wpn-card{border:2px solid rgba(255,255,255,.1);border-radius:6px;padding:6px 4px 5px;
+  cursor:pointer;text-align:center;transition:all .15s;background:rgba(0,0,0,.4);
+  position:relative}
+.wpn-card:hover{border-color:rgba(100,220,100,.4);background:rgba(100,220,100,.05)}
+.wpn-card.selected{border-color:#4fa;background:rgba(100,220,100,.1);
+  box-shadow:0 0 8px rgba(100,220,100,.25)}
+.wpn-icon{font-size:1.3rem;line-height:1;margin-bottom:2px}
+.wpn-card .wname{font-size:.48rem;color:var(--paper);letter-spacing:.03em;font-weight:bold}
+.wpn-card .wstats{font-size:.38rem;color:#7a9;font-family:'Share Tech Mono',monospace;margin-top:1px}
+.wpn-card .wdmg{font-size:.37rem;color:#fa8;font-family:'Share Tech Mono',monospace}
+.wpn-card .sel-mark{position:absolute;top:2px;right:4px;font-size:.65rem;color:#4fa;display:none}
+.wpn-card.selected .sel-mark{display:block}
+.setup-back-btn{padding:5px 12px;font-family:'Share Tech Mono',monospace;font-size:.55rem;
+  letter-spacing:.08em;background:rgba(255,255,255,.05);color:#aaa;
+  border:1px solid rgba(255,255,255,.2);border-radius:3px;cursor:pointer;
+  transition:all .2s;flex-shrink:0}
+.setup-back-btn:hover{border-color:var(--gold);color:var(--gold);background:rgba(212,160,23,.08)}
+.setup-start-btn{margin-top:6px;padding:12px 48px;font-family:'Zen Antique Soft',serif;
+  font-size:1rem;letter-spacing:.3em;background:transparent;color:var(--gold);
+  border:2px solid var(--gold);border-radius:3px;cursor:pointer;transition:all .2s;width:min(480px,94vw)}
+.setup-start-btn:hover,.setup-start-btn:active{background:rgba(212,160,23,.15);
+  box-shadow:0 0 20px rgba(212,160,23,.3)}
+
+/* ── MOBILE ── */
+#mobileCtrl{
+  position:fixed;bottom:0;left:0;right:0;
+  display:none;
+  flex-direction:column;gap:4px;padding:6px 8px 12px;
+  pointer-events:none;
+  z-index:100;
+  background:linear-gradient(0deg,rgba(0,0,0,.75) 0%,transparent 100%)}
+#mobileCtrl.show{display:flex;}
+#mobileCtrl .cbtn{pointer-events:all;}
+.ctrl-row{display:flex;justify-content:center;gap:6px;align-items:center}
+.cbtn{
+  border-radius:14px;border:2px solid rgba(255,255,255,.2);
+  background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;color:rgba(255,255,255,.5);cursor:pointer;
+  user-select:none;-webkit-user-select:none;
+  font-family:'Zen Antique Soft',serif;
+  width:58px;height:58px;flex-shrink:0;
+  transition:background .06s,border-color .06s,color .06s;}
+.cbtn.sm{width:48px;height:48px;font-size:.62rem}
+.cbtn.lg{width:66px;height:66px;font-size:.8rem}
+.cbtn:active,.cbtn.pr{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.6);color:#fff}
+.cbtn.punch{border-color:rgba(74,170,255,.5);color:rgba(100,190,255,.8)}
+.cbtn.kick {border-color:rgba(255,100,60,.5); color:rgba(255,120,80,.8)}
+.cbtn.throw{border-color:rgba(255,160,0,.5);  color:rgba(255,180,40,.8)}
+.cbtn.sp   {border-color:rgba(212,160,23,.5); color:rgba(240,200,40,.8)}
+.cbtn.guard{border-color:rgba(100,220,255,.4);color:rgba(100,220,255,.7)}
+.cbtn.wpn  {border-color:rgba(100,220,100,.4);color:rgba(100,220,100,.7)}
+.cbtn.heal {border-color:rgba(46,204,113,.5); color:rgba(80,220,130,.8)}
+.cbtn.punch:active,.cbtn.punch.pr{background:rgba(74,170,255,.25); border-color:#4af;color:#4af}
+.cbtn.kick:active, .cbtn.kick.pr {background:rgba(255,100,60,.25); border-color:#f64;color:#f64}
+.cbtn.throw:active,.cbtn.throw.pr{background:rgba(255,160,0,.25);  border-color:#fa0;color:#fa0}
+.cbtn.sp:active,   .cbtn.sp.pr  {background:rgba(212,160,23,.25); border-color:var(--gold);color:var(--gold)}
+.cbtn.guard:active,.cbtn.guard.pr{background:rgba(100,220,255,.2);border-color:#4ef;color:#4ef}
+.cbtn.wpn:active,  .cbtn.wpn.pr {background:rgba(100,220,100,.2);border-color:#4fa;color:#4fa}
+.cbtn.heal:active, .cbtn.heal.pr{background:rgba(46,204,113,.2); border-color:#2ecc71;color:#2ecc71}
+.dpad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,48px);gap:3px}
+.dpad .cbtn{width:48px;height:48px;font-size:.9rem}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-panel">
+      <div class="hud-name" id="p-name">タケシ</div>
+      <div class="bar-wrap"><div class="bar-fill hp-fill" id="p-hp" style="width:100%"></div></div>
+      <div class="bar-wrap" style="margin-top:3px"><div class="bar-fill sp-fill" id="p-sp" style="width:0%"></div></div>
+      <div class="sp-icons" id="sp-icons"></div>
+    </div>
+    <div id="hud-center">
+      <div id="stage-label">STAGE 1</div>
+      <div id="score-val">000000</div>
+      <div id="ally-panel"></div>
+    </div>
+    <div class="hud-panel" id="boss-panel" style="display:none">
+      <div class="hud-name" id="boss-name" style="color:#e74c3c">BOSS</div>
+      <div class="bar-wrap" style="width:130px"><div class="bar-fill" id="boss-hp"
+        style="width:100%;background:linear-gradient(90deg,#8b0000,#e74c3c)"></div></div>
+      <div class="hud-sub" id="boss-sub">???</div>
+    </div>
+  </div>
+  <div id="announce"></div>
+  <div id="sub-announce"></div>
+
+  <!-- TITLE SCREEN -->
+  <div class="screen" id="titleScreen">
+    <div class="title-bg"></div>
+    <div class="ink-title" style="position:relative;z-index:1">
+      族鬼列伝
+      <span class="sub">ZOKKOU RETSUDEN</span>
+      <span class="catch">— 喧嘩上等・天下無敵 —</span>
+    </div>
+    <div class="section-hd" style="position:relative;z-index:1">— ステージ選択 —</div>
+
+    <div class="stage-carousel-wrap">
+      <div class="stage-carousel"><div class="stage-cards-track" id="stageTrack"></div></div>
+      <div class="carousel-nav">
+        <div class="carousel-arrow" id="carPrev">◀</div>
+        <div class="carousel-dots" id="carDots"></div>
+        <div class="carousel-arrow" id="carNext">▶</div>
+      </div>
+      <div style="text-align:center;margin-top:8px;position:relative;z-index:1">
+        <button class="stage-select-btn" id="stageGoBtn">このステージへ →</button>
+      </div>
+    </div>
+
+    <div class="hint" style="position:relative;z-index:1;margin-top:6px">
+      A/D 移動 &nbsp;｜&nbsp; W ジャンプ &nbsp;｜&nbsp; S ガード<br>
+      J パンチ &nbsp;｜&nbsp; K キック &nbsp;｜&nbsp; U 投げ &nbsp;｜&nbsp; L 必殺 &nbsp;｜&nbsp; I 武器拾う
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="screen hidden" id="resultScreen">
+    <div class="result-box">
+      <div class="rank" id="res-rank">勝利</div>
+      <div class="rscore" id="res-score">SCORE: 000000</div>
+      <div class="rtime" id="res-time">TIME: 0:00</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn" onclick="goTitle()">タイトルへ</button>
+      <button class="btn" onclick="retryCurrent()">もう一度</button>
+    </div>
+  </div>
+
+  <!-- SETUP SCREEN -->
+  <div id="setupScreen">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px">
+      <button class="setup-back-btn" id="setupBackBtn">← ステージ選択へ</button>
+      <div class="setup-title" style="margin:0">出撃準備</div>
+    </div>
+    <div class="setup-stage-name" id="setup-stage-name"></div>
+
+    <div class="setup-section">
+      <div class="setup-sec-hd">── キャラクター選択 ──</div>
+      <div class="char-grid" id="charGrid"></div>
+    </div>
+
+    <div class="setup-section">
+      <div class="setup-sec-hd">── 味方選択（最大2人） ──</div>
+      <div class="ally-grid" id="allyGrid"></div>
+      <div class="ally-limit" id="allyLimitTxt">選択中: 0 / 2</div>
+    </div>
+
+    <div class="setup-section">
+      <div class="setup-sec-hd">── 武器選択（1つ持てる） ──</div>
+      <div class="wpn-grid" id="wpnGrid"></div>
+    </div>
+
+    <button class="setup-start-btn" id="setupStartBtn">出撃！</button>
+  </div>
+
+</div><!-- end #ui -->
+
+<!-- MOBILE（#uiの外・独立） -->
+<div id="mobileCtrl">
+  <div class="ctrl-row" style="justify-content:space-between;align-items:flex-end">
+    <div class="dpad">
+      <div></div><div class="cbtn" id="bU">↑</div><div></div>
+      <div class="cbtn" id="bL">◀</div><div></div><div class="cbtn" id="bR">▶</div>
+      <div></div><div class="cbtn" id="bDn">↓</div><div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+      <div class="cbtn heal sm" id="bWpnPick">🍙<br><span style="font-size:.55rem">拾う</span></div>
+      <div class="cbtn wpn sm"  id="bSp">必殺</div>
+      <div class="cbtn guard sm" id="bGuard">ガード</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+      <div style="display:flex;gap:4px">
+        <div class="cbtn kick lg" id="bKick">KICK<br><span style="font-size:.55rem">空中:投げ</span></div>
+        <div class="cbtn punch lg" id="bAtk">PUNCH</div>
+      </div>
+      <div class="cbtn throw" id="bWpn" style="width:100%;text-align:center">投げ（U）</div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════
+//  CANVAS / RESIZE
+// ═══════════════════════════════════════
+var C=document.getElementById('c'), ctx=C.getContext('2d');
+var W,H;
+function resize(){W=C.width=Math.min(innerWidth,600);H=C.height=Math.min(innerHeight,480);}
+resize(); addEventListener('resize',resize);
+
+// ═══════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════
+var K={};
+document.addEventListener('keydown',function(e){K[e.code]=true;e.preventDefault();});
+document.addEventListener('keyup',  function(e){K[e.code]=false;});
+var mb={U:false,D:false,L:false,R:false,atk:false,katk:false,sp:false,wpn:false,guard:false,thr:false,wpnpick:false};
+function mkBtn(id,k){
+  var el=document.getElementById(id);if(!el)return;
+  var on=function(e){e.preventDefault();mb[k]=true;el.classList.add('pr');};
+  var off=function(e){e.preventDefault();mb[k]=false;el.classList.remove('pr');};
+  ['touchstart'].forEach(function(t){el.addEventListener(t,on,{passive:false});});
+  ['touchend','touchcancel'].forEach(function(t){el.addEventListener(t,off,{passive:false});});
+  el.addEventListener('mousedown',on);el.addEventListener('mouseup',off);el.addEventListener('mouseleave',off);
+}
+mkBtn('bU','U');mkBtn('bDn','D');mkBtn('bL','L');mkBtn('bR','R');
+mkBtn('bAtk','atk');mkBtn('bKick','katk');mkBtn('bSp','sp');mkBtn('bWpn','thr');mkBtn('bGuard','guard');mkBtn('bWpnPick','wpnpick');
+
+
+
+
+
+
+
+
+// ═══════════════════════════════════════
+//  MATH
+// ═══════════════════════════════════════
+function rnd(n){return Math.floor(Math.random()*n);}
+function clamp(v,lo,hi){return v<lo?lo:v>hi?hi:v;}
+function dist(a,b){var dx=a.x-b.x,dy=a.y-b.y;return Math.sqrt(dx*dx+dy*dy);}
+
+// ═══════════════════════════════════════
+//  PARTICLES
+// ═══════════════════════════════════════
+var PARTS=[];
+function burst(x,y,col,n,big){
+  for(var i=0;i<(n||8);i++){
+    var a=Math.random()*Math.PI*2,s=1+Math.random()*(big?6:3);
+    PARTS.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,
+      life:1,col:col,r:big?3+Math.random()*4:1.5+Math.random()*2.5});
+  }
+}
+function sparks(x,y,n){
+  for(var i=0;i<(n||6);i++){
+    var a=-Math.PI/2+(Math.random()-.5)*1.2,s=3+Math.random()*5;
+    PARTS.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+      life:1,col:'#f1c40f',r:1.5,spark:true});
+  }
+}
+// fix: above had full-width parenthesis
+function spark2(x,y,n){
+  for(var i=0;i<(n||6);i++){
+    var a=-Math.PI/2+(Math.random()-.5)*1.2,s=3+Math.random()*5;
+    PARTS.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+      life:1,col:'#f1c40f',r:1.5,spark:true});
+  }
+}
+
+// ═══════════════════════════════════════
+//  SCREEN SHAKE
+// ═══════════════════════════════════════
+var SHX=0,SHY=0,SHMAG=0;
+function shake(m){SHMAG=m;}
+
+// ═══════════════════════════════════════
+//  ANNOUNCE
+// ═══════════════════════════════════════
+var annTO=null,subTO=null;
+function ann(txt,col,sub){
+  var el=document.getElementById('announce');
+  el.textContent=txt;el.style.color=col||'#fff';
+  el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
+  clearTimeout(annTO);annTO=setTimeout(function(){el.classList.remove('show');},1400);
+  if(sub){
+    var sel=document.getElementById('sub-announce');
+    sel.textContent=sub;sel.classList.remove('show');void sel.offsetWidth;sel.classList.add('show');
+    clearTimeout(subTO);subTO=setTimeout(function(){sel.classList.remove('show');},1800);
+  }
+}
+
+// ═══════════════════════════════════════
+//  STAGES DEFINITION
+// ═══════════════════════════════════════
+var STAGES=[
+  {
+    id:0,name:'城西工業高校',nameEn:'SCHOOL',
+    desc:'昼休みの屋上・廊下・体育館',diff:'★☆☆☆',
+    waves:7,bossName:'山田 竜二',bossTitle:'城西番長',
+    palette:{sky:'#b8cce4',ground:'#7a6a5a',wall:'#c4b89a',accent:'#8b7355'},
+    bgType:'school', enemies:['punk','thug','punk'],bossType:'boss_school',
+    hasSidekick:true, music:'school'
+  },
+  {
+    id:1,name:'錆びた倉庫街',nameEn:'WAREHOUSE',
+    desc:'夜の埠頭・廃倉庫・コンテナ',diff:'★★☆☆',
+    waves:7,bossName:'鬼島 サチ',bossTitle:'女番長・鬼蜘蛛',
+    palette:{sky:'#0d1b2a',ground:'#2a2218',wall:'#1a1510',accent:'#c0392b'},
+    bgType:'warehouse', enemies:['thug','heavy','thug','punk'],bossType:'boss_queen',
+    hasSidekick:true, music:'night'
+  },
+  {
+    id:2,name:'廃校舎・決戦',nameEn:'SHOWDOWN',
+    desc:'伝説の廃校で頂点を決める最終決戦',diff:'★★◐☆',
+    waves:7,bossName:'影鬼 剣造',bossTitle:'天下無敵の鬼神',
+    palette:{sky:'#110808',ground:'#1a1008',wall:'#0d0a06',accent:'#d4a017'},
+    bgType:'ruins', enemies:['thug','punk','thug','punk'],bossType:'boss_final',
+    hasSidekick:false, music:'final'
+  },
+  {
+    id:3,name:'地獄の五番勝負',nameEn:'SURVIVAL',
+    desc:'雑魚＋ボスを5フェイズ連続で撃破せよ',diff:'💀💀💀',
+    waves:7,bossName:'影鬼 剣造',bossTitle:'天下無敵の鬼神',
+    palette:{sky:'#050208',ground:'#0f0808',wall:'#0a0606',accent:'#ff2200'},
+    bgType:'ruins', enemies:[],bossType:'boss_final',
+    hasSidekick:false, isSurvival:true, survivalPhases:5, music:'final'
+  },
+  {
+    id:4,name:'夜の歓楽街',nameEn:'NEON DISTRICT',
+    desc:'ネオン輝く夜の街・キャバレー裏の抗争',diff:'★★◐☆',
+    waves:5,bossName:'紅蓮のリカ',bossTitle:'歓楽街の女帝',
+    palette:{sky:'#050010',ground:'#1a0a1a',wall:'#0d0010',accent:'#ff00aa'},
+    bgType:'neon', enemies:['punk','thug','heavy'],bossType:'boss_rika',
+    hasSidekick:true, music:'neon'
+  },
+  {
+    id:5,name:'暗黒の埠頭',nameEn:'DARK HARBOR',
+    desc:'深夜の港・コンテナ群で双子の罠にはまれ',diff:'★★★☆',
+    waves:7,bossName:'鉄鬼兄弟',bossTitle:'元警官の鉄槌',
+    palette:{sky:'#020810',ground:'#0a1018',wall:'#060c14',accent:'#00aaff'},
+    bgType:'harbor', enemies:['thug','heavy','punk'],bossType:'boss_twins',
+    hasSidekick:false, music:'harbor'
+  },
+  {
+    id:6,name:'血染め縁日',nameEn:'BLOOD FESTIVAL',
+    desc:'祭りの夜・神輿が燃える最終決戦の地',diff:'★★★☆',
+    waves:7,bossName:'獄鬼 大五郎',bossTitle:'暗黒街の大親分',
+    palette:{sky:'#1a0500',ground:'#2a1008',wall:'#1a0808',accent:'#ff4400'},
+    bgType:'festival', enemies:['thug','heavy','boss_minion'],bossType:'boss_oyabun',
+    hasSidekick:false, music:'festival'
+  },
+  {
+    id:7,name:'廃墟の地下駐車場',nameEn:'UNDERGROUND',
+    desc:'蛍光灯が点滅する地下・武装集団の根城',diff:'★★★◐',
+    waves:7,bossName:'黒鉄 ガンゾウ',bossTitle:'武装組織の番頭',
+    palette:{sky:'#080808',ground:'#101010',wall:'#0a0a0a',accent:'#00ff88'},
+    bgType:'parking', enemies:['heavy','thug','boss_minion'],bossType:'boss_ganzo',
+    hasSidekick:false, music:'parking'
+  },
+  {
+    id:8,name:'摩天楼の屋上',nameEn:'ROOFTOP',
+    desc:'雨の夜・高層ビル屋上・嵐の中の死闘',diff:'★★★◐',
+    waves:7,bossName:'銀狼 ミツキ',bossTitle:'復讐の女暗殺者',
+    palette:{sky:'#040814',ground:'#0a0a14',wall:'#060610',accent:'#aaddff'},
+    bgType:'rooftop', enemies:['thug','heavy','boss_minion'],bossType:'boss_mitsuki',
+    hasSidekick:false, music:'rooftop'
+  },
+  {
+    id:9,name:'深夜の繁華街',nameEn:'MIDNIGHT STRIP',
+    desc:'酔客と用心棒が溢れる深夜の歓楽街裏路地',diff:'★★◐☆',
+    waves:7,bossName:'夜叉 キョウコ',bossTitle:'夜の女王・毒蛇',
+    palette:{sky:'#08000e',ground:'#180a20',wall:'#0e0618',accent:'#cc00ff'},
+    bgType:'midnightstrip', enemies:['punk','thug','punk'],bossType:'boss_kyoko',
+    hasSidekick:true, music:'neon'
+  },
+  {
+    id:10,name:'廃工場の煙突',nameEn:'SMOKESTACK',
+    desc:'有毒ガスが漏れる廃工場・錆びた鉄骨の上の決闘',diff:'★★★◐',
+    waves:7,bossName:'鉄面 ジュウゾウ',bossTitle:'工場の鬼番長',
+    palette:{sky:'#0a0e08',ground:'#181410',wall:'#0e100a',accent:'#ff8800'},
+    bgType:'factory', enemies:['heavy','thug','heavy'],bossType:'boss_juzo',
+    hasSidekick:false, music:'parking'
+  },
+  {
+    id:11,name:'豪雨の河川敷',nameEn:'RIVERBANK',
+    desc:'増水した河川敷・大雨の中の泥だらけの死闘',diff:'★★★◐',
+    waves:7,bossName:'濁流 ムサシ',bossTitle:'河川敷の主',
+    palette:{sky:'#060c18',ground:'#0a1420',wall:'#060e18',accent:'#4488ff'},
+    bgType:'river', enemies:['thug','heavy','thug'],bossType:'boss_musashi',
+    hasSidekick:false, music:'harbor'
+  },
+  {
+    id:12,name:'極道の本家',nameEn:'YAKUZA HQ',
+    desc:'黒塗りの車・金屏風・極道の総本山に乗り込め',diff:'★★★★',
+    waves:7,bossName:'紫煙 龍五郎',bossTitle:'極道の親分',
+    palette:{sky:'#0a0808',ground:'#1a0e08',wall:'#120a06',accent:'#d4a017'},
+    bgType:'yakuza', enemies:['boss_minion','heavy','thug'],bossType:'boss_ryugoro',
+    hasSidekick:false, music:'final'
+  },
+  {
+    id:13,name:'氷点下の倉庫',nameEn:'FREEZER',
+    desc:'冷凍倉庫・吐く息が白く染まる極寒の戦場',diff:'★★★★',
+    waves:7,bossName:'氷鬼 ハクロ',bossTitle:'凍土の処刑人',
+    palette:{sky:'#080e14',ground:'#0c141e',wall:'#080c12',accent:'#88ccff'},
+    bgType:'freezer', enemies:['heavy','boss_minion','heavy'],bossType:'boss_hakuro',
+    hasSidekick:false, music:'rooftop'
+  },
+  {
+    id:14,name:'廃遊園地',nameEn:'DEAD PARK',
+    desc:'朽ち果てた観覧車・不気味な廃遊園地の夜',diff:'★★★★',
+    waves:7,bossName:'道化鬼 ピエロン',bossTitle:'狂笑の道化師',
+    palette:{sky:'#08060e',ground:'#140c10',wall:'#0e0810',accent:'#ff3388'},
+    bgType:'deadpark', enemies:['thug','boss_minion','thug'],bossType:'boss_pierron',
+    hasSidekick:false, music:'neon'
+  },
+  {
+    id:15,name:'疾走する貨物列車',nameEn:'FREIGHT TRAIN',
+    desc:'夜間走行中の貨物列車の屋根の上・時速120km',diff:'★★★★',
+    waves:7,bossName:'爆走 テツオ',bossTitle:'列車の鬼ライダー',
+    palette:{sky:'#04040e',ground:'#181818',wall:'#101010',accent:'#ffdd00'},
+    bgType:'train', enemies:['heavy','thug','heavy'],bossType:'boss_tetsuo',
+    hasSidekick:false, music:'parking'
+  },
+  {
+    id:16,name:'地下闘技場',nameEn:'UNDERGROUND ARENA',
+    desc:'賭け試合が開かれる秘密の地下闘技場',diff:'★★★★',
+    waves:7,bossName:'無敗 ゴウキ',bossTitle:'不敗の地下王者',
+    palette:{sky:'#060408',ground:'#100c08',wall:'#080406',accent:'#ff6600'},
+    bgType:'ugarena', enemies:['heavy','boss_minion','heavy'],bossType:'boss_gouki',
+    hasSidekick:false, music:'final'
+  },
+  {
+    id:17,name:'崩壊する高層ビル',nameEn:'COLLAPSING TOWER',
+    desc:'爆破解体中のビル・崩れ落ちる瓦礫の中を駆け抜けろ',diff:'★★★★',
+    waves:7,bossName:'鬼炎 ボンバー',bossTitle:'爆弾魔・解体屋',
+    palette:{sky:'#100808',ground:'#1a1208',wall:'#100e08',accent:'#ff4400'},
+    bgType:'collapse', enemies:['boss_minion','heavy','boss_minion'],bossType:'boss_bomber',
+    hasSidekick:false, music:'festival'
+  },
+  {
+    id:18,name:'天空の神殿',nameEn:'SKY TEMPLE',
+    desc:'雲の上に浮かぶ古代神殿・神鬼の前哨戦',diff:'★★★★',
+    waves:7,bossName:'天鬼 ムゲン',bossTitle:'神鬼の右腕・天空の番人',
+    palette:{sky:'#080418',ground:'#0c0820',wall:'#080414',accent:'#aa88ff'},
+    bgType:'skytemple', enemies:['heavy','boss_minion','heavy'],bossType:'boss_mugen',
+    hasSidekick:false, music:'rooftop'
+  },
+  {
+    id:19,name:'神鬼の闘技場',nameEn:'FINAL ARENA',
+    desc:'伝説の闘技場・真の黒幕との最終決戦',diff:'💀💀💀',
+    waves:7,bossName:'神鬼 零斬',bossTitle:'真の黒幕・天魔神',
+    palette:{sky:'#000000',ground:'#0a0000',wall:'#050000',accent:'#ff0000'},
+    bgType:'arena', enemies:['heavy','boss_minion','heavy'],bossType:'boss_shinki',
+    hasSidekick:false, music:'arena'
+  }
+];
+var currentStage=0,gameMode='title',score=0,gameTime=0;
+
+// ═══════════════════════════════════════
+//  STAGE SELECT UI
+// ═══════════════════════════════════════
+(function(){
+  // ── カルーセル式ステージ選択 ──
+  var carIdx=0;
+  var track=document.getElementById('stageTrack');
+  var dotsEl=document.getElementById('carDots');
+
+  // 各ステージのミニ背景プレビューを描画
+  function drawStagePreview(cv,s){
+    var c2=cv.getContext('2d');
+    var w=cv.width,h=cv.height;
+    var p=s.palette;
+    // 空グラデ
+    var sk=c2.createLinearGradient(0,0,0,h*0.6);
+    sk.addColorStop(0,p.sky);sk.addColorStop(1,p.wall||p.sky);
+    c2.fillStyle=sk;c2.fillRect(0,0,w,h*0.6);
+    // ステージ固有の装飾
+    if(s.bgType==='school'){
+      c2.fillStyle='#c4b89a';c2.fillRect(10,4,60,h*0.56);
+      c2.fillStyle='#8bb4d8';
+      for(var r=0;r<2;r++)for(var cc=0;cc<3;cc++)c2.fillRect(14+cc*18,8+r*20,12,14);
+    } else if(s.bgType==='warehouse'){
+      c2.fillStyle='rgba(255,255,255,0.4)';
+      for(var si=0;si<8;si++){c2.beginPath();c2.arc(si*14,6+si%3*5,0.8,0,Math.PI*2);c2.fill();}
+      c2.fillStyle='#1a1a28';c2.fillRect(8,8,40,h*0.5);c2.fillRect(55,14,35,h*0.44);
+    } else if(s.bgType==='ruins'){
+      c2.fillStyle='rgba(255,240,200,0.15)';c2.beginPath();c2.arc(w*0.75,h*0.2,10,0,Math.PI*2);c2.fill();
+      c2.fillStyle='#0a0806';c2.fillRect(5,12,30,h*0.48);c2.fillRect(45,6,25,h*0.54);
+    } else if(s.bgType==='neon'){
+      var ncs=['#ff00aa','#00ffee','#ffaa00'];
+      for(var nb=0;nb<4;nb++){
+        c2.fillStyle='#1a0a28';c2.fillRect(nb*28+4,6,22,h*0.52);
+        c2.shadowColor=ncs[nb%3];c2.shadowBlur=6;
+        c2.strokeStyle=ncs[nb%3];c2.lineWidth=1;c2.strokeRect(nb*28+6,8,18,6);
+        c2.shadowBlur=0;
+      }
+    } else if(s.bgType==='harbor'){
+      c2.fillStyle='rgba(180,200,255,0.7)';c2.beginPath();c2.arc(w*0.8,h*0.1,7,0,Math.PI*2);c2.fill();
+      c2.strokeStyle='#1a2a3a';c2.lineWidth=3;
+      c2.beginPath();c2.moveTo(30,h*0.58);c2.lineTo(30,6);c2.lineTo(70,6);c2.stroke();
+      c2.fillStyle='#8b2a2a';c2.fillRect(8,h*0.4,36,h*0.2);
+    } else if(s.bgType==='festival'){
+      c2.fillStyle='rgba(255,80,0,0.7)';
+      for(var fl=0;fl<5;fl++){c2.beginPath();c2.ellipse(fl*22+10,h*0.28,5,7,0,0,Math.PI*2);c2.fill();}
+      c2.fillStyle='#8b2a00';c2.fillRect(w/2-20,h*0.35,40,24);
+    } else if(s.bgType==='parking'){
+      c2.fillStyle='rgba(180,255,200,0.6)';c2.fillRect(8,8,28,3);c2.fillRect(55,8,28,3);
+      c2.fillStyle='#1a1a1a';c2.fillRect(16,h*0.32,36,18);c2.fillRect(60,h*0.32,30,18);
+    } else if(s.bgType==='rooftop'){
+      c2.strokeStyle='rgba(150,180,255,0.2)';c2.lineWidth=1;
+      for(var rr=0;rr<6;rr++){c2.beginPath();c2.moveTo(rr*20,0);c2.lineTo(rr*20+4,h*0.5);c2.stroke();}
+      for(var rb=0;rb<4;rb++){c2.fillStyle='#080c18';c2.fillRect(rb*28+4,12,22,h*0.46);}
+    } else if(s.bgType==='arena'){
+      c2.fillStyle='rgba(255,0,0,0.15)';c2.beginPath();
+      for(var ak=0;ak<5;ak++){
+        var a1=ak*Math.PI*2/5-Math.PI/2,a2=((ak+2)%5)*Math.PI*2/5-Math.PI/2;
+        c2.moveTo(w/2+Math.cos(a1)*20,h*0.3+Math.sin(a1)*16);
+        c2.lineTo(w/2+Math.cos(a2)*20,h*0.3+Math.sin(a2)*16);
+      }
+      c2.strokeStyle='#ff0000';c2.lineWidth=1.5;c2.stroke();
+      c2.fillStyle='rgba(255,60,0,0.6)';
+      for(var af=0;af<4;af++){c2.beginPath();c2.arc(af*30+10,h*0.5,5,0,Math.PI*2);c2.fill();}
+    } else if(s.bgType==='midnightstrip'){
+      // 深夜繁華街：紫ネオン
+      var mncs=['#cc00ff','#ff00cc','#8800ff'];
+      for(var mn=0;mn<4;mn++){
+        c2.fillStyle='#1a0828';c2.fillRect(mn*30+4,6,24,h*0.52);
+        c2.shadowColor=mncs[mn%3];c2.shadowBlur=8;
+        c2.strokeStyle=mncs[mn%3];c2.lineWidth=1;c2.strokeRect(mn*30+6,8,20,8);
+        c2.shadowBlur=0;
+      }
+    } else if(s.bgType==='factory'){
+      // 廃工場：煙突・鉄骨
+      c2.fillStyle='#1a1208';c2.fillRect(10,6,18,h*0.54);c2.fillRect(60,12,14,h*0.46);
+      c2.fillStyle='rgba(255,140,0,0.5)';
+      c2.beginPath();c2.arc(19,6,6,0,Math.PI*2);c2.fill(); // 煙
+      c2.strokeStyle='#888';c2.lineWidth=2;
+      for(var fi=0;fi<3;fi++){c2.beginPath();c2.moveTo(fi*30+20,h*0.4);c2.lineTo(fi*30+45,h*0.4);c2.stroke();}
+    } else if(s.bgType==='river'){
+      // 河川敷：雨・水
+      c2.strokeStyle='rgba(80,140,255,0.3)';c2.lineWidth=1;
+      for(var ri=0;ri<8;ri++){c2.beginPath();c2.moveTo(ri*15,ri*5);c2.lineTo(ri*15+3,ri*5+10);c2.stroke();}
+      c2.fillStyle='rgba(40,80,160,0.5)';c2.fillRect(0,h*0.48,w,h*0.14);
+      c2.strokeStyle='rgba(100,160,255,0.3)';
+      for(var rw=0;rw<3;rw++){c2.beginPath();c2.moveTo(0,h*0.5+rw*4);c2.lineTo(w,h*0.5+rw*4);c2.stroke();}
+    } else if(s.bgType==='yakuza'){
+      // 極道本家：金屏風・黒塗り車
+      c2.fillStyle='rgba(212,160,23,0.15)';c2.fillRect(0,0,w,h*0.58);
+      for(var yi=0;yi<5;yi++){c2.strokeStyle='rgba(212,160,23,0.3)';c2.lineWidth=1;c2.beginPath();c2.moveTo(yi*24,0);c2.lineTo(yi*24,h*0.58);c2.stroke();}
+      c2.fillStyle='#0a0808';c2.fillRect(10,h*0.36,50,20);c2.fillRect(70,h*0.38,40,18); // 車
+    } else if(s.bgType==='freezer'){
+      // 冷凍倉庫：氷・白息
+      c2.fillStyle='rgba(136,200,255,0.08)';c2.fillRect(0,0,w,h*0.6);
+      for(var fz=0;fz<6;fz++){c2.fillStyle='rgba(180,220,255,0.4)';c2.fillRect(fz*18+4,10+fz%3*8,10,6);}
+      c2.strokeStyle='rgba(180,220,255,0.25)';c2.lineWidth=1;
+      for(var fzr=0;fzr<4;fzr++){c2.beginPath();c2.moveTo(0,fzr*14+10);c2.lineTo(w,fzr*14+10);c2.stroke();}
+    } else if(s.bgType==='deadpark'){
+      // 廃遊園地：観覧車
+      c2.strokeStyle='rgba(255,51,136,0.4)';c2.lineWidth=1.5;
+      c2.beginPath();c2.arc(w*0.75,h*0.3,20,0,Math.PI*2);c2.stroke();
+      for(var dp=0;dp<6;dp++){var da=dp*Math.PI/3;c2.beginPath();c2.moveTo(w*0.75,h*0.3);c2.lineTo(w*0.75+Math.cos(da)*20,h*0.3+Math.sin(da)*20);c2.stroke();}
+      c2.fillStyle='rgba(255,51,136,0.5)';c2.fillRect(8,h*0.38,18,16);
+    } else if(s.bgType==='train'){
+      // 貨物列車：レール・車両
+      c2.strokeStyle='#888';c2.lineWidth=2;
+      c2.beginPath();c2.moveTo(0,h*0.5);c2.lineTo(w,h*0.5);c2.stroke();
+      c2.beginPath();c2.moveTo(0,h*0.54);c2.lineTo(w,h*0.54);c2.stroke();
+      for(var tr=0;tr<6;tr++){c2.fillStyle='#222';c2.fillRect(tr*18,h*0.48,14,8);}
+      c2.fillStyle='#181818';c2.fillRect(5,h*0.32,40,h*0.18);c2.fillRect(55,h*0.3,35,h*0.2);
+    } else if(s.bgType==='ugarena'){
+      // 地下闘技場：スポットライト
+      c2.fillStyle='rgba(255,102,0,0.18)';
+      c2.beginPath();c2.moveTo(w/2,0);c2.lineTo(w/2-30,h*0.6);c2.lineTo(w/2+30,h*0.6);c2.fill();
+      c2.strokeStyle='rgba(255,102,0,0.5)';c2.lineWidth=2;
+      c2.beginPath();c2.arc(w/2,h*0.55,18,0,Math.PI*2);c2.stroke();
+    } else if(s.bgType==='collapse'){
+      // 崩壊ビル：飛散する瓦礫
+      c2.fillStyle='#1a1208';c2.fillRect(20,4,30,h*0.5);c2.fillRect(60,10,25,h*0.44);
+      c2.fillStyle='rgba(255,68,0,0.5)';
+      for(var cb=0;cb<6;cb++){c2.beginPath();c2.arc(cb*16+5,cb*8+5,4,0,Math.PI*2);c2.fill();}
+    } else if(s.bgType==='skytemple'){
+      // 天空神殿：雲・柱
+      c2.fillStyle='rgba(170,136,255,0.15)';
+      for(var st2=0;st2<4;st2++){c2.beginPath();c2.ellipse(st2*28+14,h*0.2,14,8,0,0,Math.PI*2);c2.fill();}
+      c2.fillStyle='rgba(170,136,255,0.4)';
+      for(var sp=0;sp<4;sp++){c2.fillRect(sp*24+8,h*0.28,8,h*0.32);}
+    }
+    // 地面
+    c2.fillStyle=p.ground;c2.fillRect(0,h*0.6,w,h*0.4);
+    // ボスアクセント
+    c2.fillStyle=p.accent||'#d4a017';
+    c2.fillRect(0,h*0.58,w,3);
+  }
+
+  // カード生成
+  STAGES.forEach(function(s,i){
+    var card=document.createElement('div');
+    card.className='stage-card'+(i===0?' active':'');
+    // プレビューキャンバス
+    var prev=document.createElement('div');prev.className='stage-card-preview';
+    var cv=document.createElement('canvas');cv.width=300;cv.height=90;
+    drawStagePreview(cv,s);
+    // ステージ番号バッジ
+    var badge=document.createElement('div');
+    badge.style.cssText='position:absolute;top:6px;left:8px;font-size:.55rem;'+
+      'color:var(--gold);font-family:"Share Tech Mono",monospace;letter-spacing:.15em;'+
+      'text-shadow:0 1px 4px #000;z-index:2';
+    badge.textContent='STAGE '+(i+1);
+    if(s.isSurvival){badge.style.color='#ff2200';}
+    prev.appendChild(cv);prev.appendChild(badge);
+    // 難易度バー
+    var diffBar=document.createElement('div');
+    diffBar.style.cssText='position:absolute;bottom:0;left:0;right:0;height:3px;background:'+
+      (s.palette.accent||'#d4a017')+';opacity:0.7';
+    prev.appendChild(diffBar);
+    card.appendChild(prev);
+    // テキスト情報
+    var body=document.createElement('div');body.className='stage-card-body';
+    body.innerHTML=
+      '<div class="stage-card-name">'+s.name+'</div>'+
+      '<div class="stage-card-desc">'+s.desc+'</div>'+
+      '<div class="stage-card-diff" style="color:'+(s.palette.accent||'#d4a017')+'">難易度 '+s.diff+'</div>'+
+      '<div class="stage-card-boss">BOSS: '+s.bossName+' 〈'+s.bossTitle+'〉</div>';
+    card.appendChild(body);
+    // タップでそのままセットアップへ（ダブルタップ的）
+    card.addEventListener('click',function(){
+      if(carIdx===i){openSetup(s.id);}
+      else{carMoveTo(i);}
+    });
+    track.appendChild(card);
+
+    // ドット
+    var dot=document.createElement('div');
+    dot.className='carousel-dot'+(i===0?' on':'');
+    dot.addEventListener('click',function(){carMoveTo(i);});
+    dotsEl.appendChild(dot);
+  });
+
+  function carMoveTo(idx){
+    carIdx=idx;
+    var cardW=track.children[0]?track.children[0].offsetWidth+16:280;
+    // 中央寄せオフセット計算
+    var wrap=document.querySelector('.stage-carousel');
+    var centerOff=(wrap.offsetWidth-cardW)/2;
+    track.style.transform='translateX('+( centerOff - idx*cardW )+'px)';
+    // アクティブ更新
+    Array.from(track.children).forEach(function(c,i){
+      c.classList.toggle('active',i===idx);
+    });
+    Array.from(dotsEl.children).forEach(function(d,i){
+      d.classList.toggle('on',i===idx);
+    });
+  }
+  // 初期位置
+  setTimeout(function(){carMoveTo(0);},50);
+
+  // 矢印
+  document.getElementById('carPrev').addEventListener('click',function(){
+    carMoveTo(Math.max(0,carIdx-1));
+  });
+  document.getElementById('carNext').addEventListener('click',function(){
+    carMoveTo(Math.min(STAGES.length-1,carIdx+1));
+  });
+
+  // 「このステージへ」ボタン
+  document.getElementById('stageGoBtn').addEventListener('click',function(){
+    openSetup(STAGES[carIdx].id);
+  });
+
+  // スワイプ対応
+  var swipeX0=null;
+  var carEl=document.querySelector('.stage-carousel');
+  carEl.addEventListener('touchstart',function(e){swipeX0=e.touches[0].clientX;},{passive:true});
+  carEl.addEventListener('touchend',function(e){
+    if(swipeX0===null)return;
+    var dx=e.changedTouches[0].clientX-swipeX0;
+    if(Math.abs(dx)>40){dx<0?carMoveTo(Math.min(STAGES.length-1,carIdx+1)):carMoveTo(Math.max(0,carIdx-1));}
+    swipeX0=null;
+  });
+  // キー左右でも動かせる（タイトル画面のみ）
+  document.addEventListener('keydown',function(e){
+    if(gameMode!=='title')return;
+    if(e.code==='ArrowRight'||e.code==='KeyD')carMoveTo(Math.min(STAGES.length-1,carIdx+1));
+    if(e.code==='ArrowLeft' ||e.code==='KeyA')carMoveTo(Math.max(0,carIdx-1));
+    if(e.code==='Enter'||e.code==='Space')openSetup(STAGES[carIdx].id);
+  });
+})();
+
+// ═══════════════════════════════════════
+//  WEAPON DEFINITIONS
+// ═══════════════════════════════════════
+var WEAPONS={
+  bat:     {label:'バット',     col:'#8B6914',dmg:1.8,reach:16,uses:10,shape:'bat'},
+  chain:   {label:'チェーン',   col:'#bbb',   dmg:1.5,reach:24,uses:14,shape:'chain'},
+  pipe:    {label:'鉄パイプ',   col:'#778',   dmg:2.0,reach:14,uses:7, shape:'pipe'},
+  bottle:  {label:'瓶',        col:'#3a8a5a',dmg:1.3,reach:9, uses:3, shape:'bottle'},
+  bokken:  {label:'木刀',      col:'#8B5E3C',dmg:2.2,reach:18,uses:8, shape:'bokken'},
+  nunchaku:{label:'ヌンチャク', col:'#6B4C2A',dmg:1.7,reach:20,uses:15,shape:'nunchaku'},
+  cutter:  {label:'カッター',   col:'#aaa',   dmg:2.5,reach:8, uses:5, shape:'cutter'},
+  shovel:  {label:'スコップ',   col:'#888',   dmg:1.9,reach:16,uses:6, shape:'shovel'},
+  // ── 新武器 ──
+  katana:  {label:'日本刀',     col:'#e8e8f0',dmg:3.2,reach:22,uses:6, shape:'katana'},
+  hammer:  {label:'ハンマー',   col:'#555',   dmg:2.8,reach:12,uses:8, shape:'hammer'},
+  umbrella:{label:'蛇の目傘',   col:'#c0392b',dmg:1.4,reach:22,uses:12,shape:'umbrella'},
+  rod:     {label:'鉄筋',      col:'#8a9a8a',dmg:2.1,reach:26,uses:9, shape:'rod'},
+  stun:    {label:'スタンガン', col:'#ffe000',dmg:1.6,reach:8, uses:10,shape:'stun'},
+  kusari:  {label:'分銅鎖',     col:'#d4a017',dmg:2.3,reach:30,uses:7, shape:'kusari'},
+  knife:   {label:'ナイフ',     col:'#ddd',   dmg:2.6,reach:8, uses:6, shape:'knife'},
+  sign:    {label:'標識',       col:'#e74c3c',dmg:2.4,reach:14,uses:5, shape:'sign'},
+};
+
+// ═══════════════════════════════════════
+//  PLAYABLE CHARACTERS (選択可能)
+// ═══════════════════════════════════════
+var PLAYABLE_CHARS=[
+  {key:'takeshi', name:'タケシ',  type:'バランス', col:'#3a5fa0',col2:'#f5e8c8',hairCol:'#1a1008',
+   hp:180,spd:3.0,atk:22,katk:38,w:20,h:52,jumpV:-11,maxSp:3,special:'百裂拳',specialCol:'#f1c40f'},
+  {key:'ryo',     name:'リョウ',  type:'パワー',   col:'#c0392b',col2:'#f5e8c8',hairCol:'#0a0a0a',
+   hp:220,spd:2.4,atk:30,katk:52,w:24,h:54,jumpV:-10,maxSp:2,special:'岩砕き',specialCol:'#e74c3c'},
+  {key:'hayate',  name:'ハヤテ',  type:'俊足',     col:'#2a6a2a',col2:'#f5e8c8',hairCol:'#1a1008',
+   hp:145,spd:5.2,atk:18,katk:32,w:16,h:48,jumpV:-14,maxSp:4,special:'神速連打',specialCol:'#0f0'},
+  {key:'kana',    name:'カナ',    type:'スピード', col:'#8b0057',col2:'#f5e8c8',hairCol:'#1a0a1a',
+   hp:140,spd:4.2,atk:16,katk:28,w:16,h:48,jumpV:-13,maxSp:4,special:'乱舞',specialCol:'#ff69b4',isQueen:true},
+  {key:'sachi',   name:'サチ',    type:'女番長',   col:'#6b006b',col2:'#f5e8c8',hairCol:'#0a0a1a',
+   hp:155,spd:3.8,atk:18,katk:32,w:17,h:50,jumpV:-13,maxSp:3,special:'鬼蜘蛛斬',specialCol:'#c678ff',isQueen:true},
+  {key:'akane',   name:'アカネ',  type:'女パワー', col:'#8b1a00',col2:'#f5e8c8',hairCol:'#1a0a0a',
+   hp:200,spd:2.8,atk:28,katk:48,w:20,h:52,jumpV:-10,maxSp:2,special:'鬼母拳',specialCol:'#ff4400',isQueen:true},
+  {key:'shiro',   name:'シロウ',  type:'テクニック',col:'#1a4a2a',col2:'#f5e8c8',hairCol:'#2a1a08',
+   hp:160,spd:3.4,atk:20,katk:36,w:18,h:50,jumpV:-12,maxSp:3,special:'制空拳',specialCol:'#4fa'},
+  {key:'tetsu',   name:'テツ',    type:'タフネス', col:'#3a3a5a',col2:'#f5e8c8',hairCol:'#0a0a0a',
+   hp:260,spd:2.0,atk:26,katk:44,w:26,h:54,jumpV:-9, maxSp:2,special:'鬼神拳',specialCol:'#aaa'},
+  {key:'jun',     name:'ジュン',  type:'ワイルド', col:'#7a3a00',col2:'#f5e8c8',hairCol:'#8b4500',
+   hp:170,spd:3.6,atk:24,katk:40,w:20,h:52,jumpV:-12,maxSp:3,special:'流星蹴',specialCol:'#fa0'},
+  {key:'rei',     name:'レイ',    type:'女番長',   col:'#1a3a6a',col2:'#f5e8c8',hairCol:'#8b0000',
+   hp:150,spd:4.0,atk:17,katk:30,w:16,h:48,jumpV:-13,maxSp:4,special:'双竜脚',specialCol:'#4af',isQueen:true},
+];
+
+// 味方候補（選べる）
+var ALLY_CHARS=[
+  // ── 既存5人 ──
+  {key:'hiro',   name:'ヒロ',   type:'アタッカー',col:'#6b3a8a',col2:'#f5e8c8',hairCol:'#8b0000',
+   hp:140,spd:3.2,atk:18,katk:30,w:18,h:48,jumpV:-11,isAlly:true,allyWeapon:'bat'},
+  {key:'makoto', name:'マコト', type:'パワー',    col:'#2a6b2a',col2:'#f5e8c8',hairCol:'#2a1a08',
+   hp:160,spd:2.8,atk:24,katk:35,w:22,h:50,jumpV:-10,isAlly:true,allyWeapon:'pipe'},
+  {key:'nana',   name:'ナナ',   type:'女番長',    col:'#a0286e',col2:'#f5e8c8',hairCol:'#2a0a1a',
+   hp:130,spd:4.0,atk:18,katk:28,w:16,h:46,jumpV:-13,isAlly:true,isQueen:true,allyWeapon:'chain'},
+  {key:'yuki',   name:'ユキ',   type:'女番長',    col:'#003a6b',col2:'#f5e8c8',hairCol:'#1a1a3a',
+   hp:120,spd:4.2,atk:16,katk:26,w:16,h:46,jumpV:-14,isAlly:true,isQueen:true,allyWeapon:'nunchaku'},
+  {key:'daigo',  name:'ダイゴ', type:'タフ',      col:'#4a2a1a',col2:'#f5e8c8',hairCol:'#0a0a0a',
+   hp:200,spd:2.2,atk:22,katk:38,w:26,h:54,jumpV:-9, isAlly:true,allyWeapon:'shovel'},
+  // ── 新規8人 ──
+  {key:'ryuji',  name:'リュウジ',type:'喧嘩番長', col:'#8b1a00',col2:'#f5e8c8',hairCol:'#1a0a00',
+   hp:175,spd:3.0,atk:26,katk:44,w:22,h:52,jumpV:-11,isAlly:true,allyWeapon:'bokken'},
+  {key:'koharu', name:'コハル', type:'女スピード',col:'#c04a8a',col2:'#f5e8c8',hairCol:'#0a0a0a',
+   hp:110,spd:5.0,atk:14,katk:24,w:15,h:46,jumpV:-15,isAlly:true,isQueen:true,allyWeapon:'cutter'},
+  {key:'genta',  name:'ゲンタ', type:'巨漢',     col:'#2a2a5a',col2:'#f5e8c8',hairCol:'#0a0a0a',
+   hp:240,spd:1.8,atk:30,katk:52,w:30,h:56,jumpV:-8, isAlly:true,allyWeapon:'pipe'},
+  {key:'sora',   name:'ソラ',   type:'元不良',   col:'#1a4a6a',col2:'#f5e8c8',hairCol:'#d4a017',
+   hp:150,spd:3.8,atk:20,katk:36,w:18,h:50,jumpV:-13,isAlly:true,allyWeapon:'nunchaku'},
+  {key:'hanako', name:'ハナコ', type:'女格闘家', col:'#6a1a2a',col2:'#f5e8c8',hairCol:'#2a0a08',
+   hp:145,spd:3.6,atk:22,katk:38,w:17,h:48,jumpV:-13,isAlly:true,isQueen:true,allyWeapon:'bokken'},
+  {key:'tetsuya',name:'テツヤ', type:'武器職人', col:'#3a3a1a',col2:'#f5e8c8',hairCol:'#4a3a08',
+   hp:155,spd:2.8,atk:16,katk:28,w:20,h:50,jumpV:-10,isAlly:true,allyWeapon:'shovel'},
+  {key:'riku',   name:'リク',   type:'野生児',   col:'#5a3a00',col2:'#f5e8c8',hairCol:'#6b4500',
+   hp:135,spd:4.4,atk:19,katk:34,w:17,h:48,jumpV:-14,isAlly:true,allyWeapon:'chain'},
+  {key:'akira',  name:'アキラ', type:'元ヤン番長',col:'#0a3a1a',col2:'#f5e8c8',hairCol:'#1a0808',
+   hp:165,spd:3.2,atk:23,katk:40,w:20,h:52,jumpV:-11,isAlly:true,allyWeapon:'bat'},
+  // ── なし ──
+  {key:'none',   name:'なし',   type:'一人旅',    col:'#333',col2:'#333',hairCol:'#333',
+   hp:0,spd:0,atk:0,katk:0,w:0,h:0,jumpV:0,isAlly:true,isEmpty:true},
+];
+
+// 武器アイコン
+var WPN_ICONS={bat:'🏏',chain:'⛓️',pipe:'🔧',bottle:'🍶',bokken:'🪵',nunchaku:'✊',cutter:'🔪',shovel:'⛏️',
+  katana:'⚔️',hammer:'🔨',umbrella:'☂️',rod:'📏',stun:'⚡',kusari:'🌀',knife:'🗡️',sign:'🚧'};
+
+
+var CHAR_DEFS={
+  player:{name:'タケシ',hp:180,spd:3.0,atk:22,katk:38,w:20,h:52,
+    col:'#3a5fa0',col2:'#f5e8c8',hairCol:'#1a1008',jumpV:-11,sp:0,maxSp:3,
+    special:'百裂拳',specialCol:'#f1c40f'},
+
+  punk:{
+    name:'チンピラ',hp:70,spd:2.5,atk:14,katk:23,w:18,h:46,
+    col:'#8b3a1a',col2:'#f5e8c8',hairCol:'#1a1008',
+    jumpV:-10,isEnemy:true,score:100,outfit:'uniform'
+  },
+  thug:{
+    name:'用心棒',hp:105,spd:2.1,atk:19,katk:32,w:22,h:50,
+    col:'#4a4a4a',col2:'#f5e8c8',hairCol:'#2a1a08',
+    jumpV:-10,isEnemy:true,score:200,outfit:'suit'
+  },
+  heavy:{
+    name:'ガチムチ',hp:155,spd:1.6,atk:26,katk:46,w:28,h:52,
+    col:'#3a3a5a',col2:'#f5e8c8',hairCol:'#0a0a0a',
+    jumpV:-8,isEnemy:true,score:350,outfit:'tank'
+  },
+  boss_minion:{
+    name:'幹部',hp:120,spd:2.3,atk:21,katk:37,w:22,h:50,
+    col:'#6b2a2a',col2:'#f5e8c8',hairCol:'#0a0a0a',
+    jumpV:-10,isEnemy:true,score:400,outfit:'happi'
+  },
+  boss_school:{
+    name:'山田 竜二',hp:330,spd:2.6,atk:31,katk:54,w:24,h:54,
+    col:'#c0392b',col2:'#f5e8c8',hairCol:'#0a0a0a',
+    jumpV:-12,isEnemy:true,isBoss:true,score:2000,outfit:'uniform'
+  },
+  boss_queen:{
+    name:'鬼島 サチ',hp:300,spd:3.2,atk:26,katk:47,w:20,h:50,
+    col:'#8b0057',col2:'#f5e8c8',hairCol:'#1a0a1a',
+    jumpV:-13,isEnemy:true,isBoss:true,score:2500,isQueen:true,outfit:'china'
+  },
+  boss_final:{
+    name:'影鬼 剣造',hp:320,spd:2.4,atk:29,katk:49,w:26,h:58,
+    col:'#1a1a2e',col2:'#d4a017',hairCol:'#0a0a0a',
+    jumpV:-12,isEnemy:true,isBoss:true,score:5000,isFinal:true,outfit:'coat'
+  },
+  boss_survival:{
+    name:'影鬼 剣造',hp:220,spd:2.6,atk:31,katk:51,w:26,h:58,
+    col:'#1a1a2e',col2:'#ff2200',hairCol:'#0a0a0a',
+    jumpV:-12,isEnemy:true,isBoss:true,score:3000,isFinal:true,isSurvivalBoss:true,outfit:'coat'
+  },
+  // ── 新ボス ──
+  boss_rika:{
+    name:'紅蓮のリカ',hp:280,spd:4.2,atk:24,katk:42,w:18,h:50,
+    col:'#8b0050',col2:'#f5e8c8',hairCol:'#ff0066',
+    jumpV:-15,isEnemy:true,isBoss:true,score:4000,isQueen:true,isFemBoss:true,outfit:'china'
+  },
+  boss_twins:{  // 双子兄（片方）
+    name:'鉄鬼・兄',hp:200,spd:2.8,atk:28,katk:46,w:24,h:54,
+    col:'#1a3a6a',col2:'#f5e8c8',hairCol:'#0a0a2a',
+    jumpV:-11,isEnemy:true,isBoss:true,score:2500,isTwins:true,outfit:'track'
+  },
+  boss_twins2:{ // 双子弟（片方）
+    name:'鉄鬼・弟',hp:200,spd:3.2,atk:25,katk:44,w:24,h:54,
+    col:'#3a1a6a',col2:'#f5e8c8',hairCol:'#1a0a2a',
+    jumpV:-12,isEnemy:true,isBoss:true,score:2500,isTwins:true,outfit:'track'
+  },
+  boss_excop:{  // 元警官（双子と同時登場）
+    name:'轟 鉄之介',hp:350,spd:2.2,atk:34,katk:56,w:28,h:58,
+    col:'#2a3a2a',col2:'#f5e8c8',hairCol:'#3a3a3a',
+    jumpV:-9,isEnemy:true,isBoss:true,score:5000,isExCop:true,outfit:'suit'
+  },
+  boss_oyabun:{ // 巨漢の親分
+    name:'獄鬼 大五郎',hp:600,spd:1.6,atk:42,katk:70,w:36,h:62,
+    col:'#3a1a0a',col2:'#f5e8c8',hairCol:'#0a0a0a',
+    jumpV:-8,isEnemy:true,isBoss:true,score:8000,isOyabun:true,outfit:'happi'
+  },
+  boss_ganzo:{ // 武装組織番頭
+    name:'黒鉄 ガンゾウ',hp:420,spd:2.0,atk:36,katk:60,w:28,h:56,
+    col:'#1a1a1a',col2:'#f5e8c8',hairCol:'#333',
+    jumpV:-9,isEnemy:true,isBoss:true,score:6000,isGanzo:true,outfit:'suit'
+  },
+  boss_mitsuki:{ // 女暗殺者
+    name:'銀狼 ミツキ',hp:320,spd:5.0,atk:28,katk:50,w:17,h:50,
+    col:'#2a2a4a',col2:'#f5e8c8',hairCol:'#c0c0ff',
+    jumpV:-16,isEnemy:true,isBoss:true,score:7000,isQueen:true,isMitsuki:true,outfit:'coat'
+  },
+  boss_shinki:{ // 真の黒幕（最終ボス）
+    name:'神鬼 零斬',hp:800,spd:3.0,atk:50,katk:80,w:28,h:60,
+    col:'#000000',col2:'#ff0000',hairCol:'#ff0000',
+    jumpV:-13,isEnemy:true,isBoss:true,score:15000,isShinki:true,isFinal:true,outfit:'china'
+  },
+  // ── ステージ10〜19用ボス ──
+  boss_kyoko:{
+    name:'夜叉 キョウコ',hp:300,spd:4.5,atk:26,katk:44,w:17,h:50,
+    col:'#440066',col2:'#f5e8c8',hairCol:'#cc00ff',
+    jumpV:-15,isEnemy:true,isBoss:true,score:4500,isQueen:true,outfit:'china'
+  },
+  boss_juzo:{
+    name:'鉄面 ジュウゾウ',hp:380,spd:2.2,atk:34,katk:58,w:28,h:56,
+    col:'#2a1a08',col2:'#f5e8c8',hairCol:'#1a1a1a',
+    jumpV:-10,isEnemy:true,isBoss:true,score:5000,isGanzo:true,outfit:'tank'
+  },
+  boss_musashi:{
+    name:'濁流 ムサシ',hp:360,spd:2.6,atk:32,katk:54,w:26,h:56,
+    col:'#0a1a2a',col2:'#f5e8c8',hairCol:'#2a3a4a',
+    jumpV:-11,isEnemy:true,isBoss:true,score:5200,isExCop:true,outfit:'track'
+  },
+  boss_ryugoro:{
+    name:'紫煙 龍五郎',hp:440,spd:2.0,atk:38,katk:64,w:28,h:58,
+    col:'#1a0a0a',col2:'#d4a017',hairCol:'#0a0a0a',
+    jumpV:-9,isEnemy:true,isBoss:true,score:6000,isOyabun:true,outfit:'happi'
+  },
+  boss_hakuro:{
+    name:'氷鬼 ハクロ',hp:420,spd:2.4,atk:36,katk:62,w:26,h:56,
+    col:'#0a1428',col2:'#e8f0ff',hairCol:'#88aacc',
+    jumpV:-11,isEnemy:true,isBoss:true,score:6200,isGanzo:true,outfit:'coat'
+  },
+  boss_pierron:{
+    name:'道化鬼 ピエロン',hp:400,spd:3.8,atk:30,katk:52,w:22,h:54,
+    col:'#2a0a28',col2:'#fff',hairCol:'#ff3388',
+    jumpV:-14,isEnemy:true,isBoss:true,score:6500,isFemBoss:true,outfit:'china'
+  },
+  boss_tetsuo:{
+    name:'爆走 テツオ',hp:460,spd:3.2,atk:40,katk:66,w:26,h:58,
+    col:'#101010',col2:'#ffdd00',hairCol:'#1a1a1a',
+    jumpV:-12,isEnemy:true,isBoss:true,score:7000,isGanzo:true,outfit:'track'
+  },
+  boss_gouki:{
+    name:'無敗 ゴウキ',hp:520,spd:2.8,atk:44,katk:72,w:32,h:60,
+    col:'#1a0808',col2:'#f5e8c8',hairCol:'#0a0a0a',
+    jumpV:-10,isEnemy:true,isBoss:true,score:8000,isOyabun:true,outfit:'happi'
+  },
+  boss_bomber:{
+    name:'鬼炎 ボンバー',hp:480,spd:2.6,atk:42,katk:70,w:28,h:58,
+    col:'#2a0800',col2:'#ff8800',hairCol:'#ff4400',
+    jumpV:-11,isEnemy:true,isBoss:true,score:7500,isShinki:true,outfit:'tank'
+  },
+  boss_mugen:{
+    name:'天鬼 ムゲン',hp:600,spd:3.2,atk:46,katk:76,w:26,h:60,
+    col:'#080418',col2:'#aa88ff',hairCol:'#aa88ff',
+    jumpV:-13,isEnemy:true,isBoss:true,score:10000,isShinki:true,outfit:'china'
+  }
+};
+
+// ═══════════════════════════════════════
+//  FIGHTER CLASS
+// ═══════════════════════════════════════
+var GY; // ground Y, set each frame
+var GRAV=0.55;
+var fighters=[],player,allies=[],enemies=[];
+var wDrops=[]; // dropped weapons on ground
+var scrollX=0; // world scroll
+var stageWidth=2400;
+
+function Fighter(def,x,groundY){
+  this.def=def;
+  this.x=x; this.y=groundY||400;
+  this.gy=groundY||400; // this fighter's ground reference
+  this.vx=0; this.vy=0;
+  this.facing=1;
+  this.hp=def.hp; this.maxHp=def.hp;
+  this.sp=0; this.maxSp=def.maxSp||0;
+  this.spCharges=0;
+  this.state='idle'; this.stateT=0;
+  this.hitCD=0;
+  this.combo=0; this.comboT=0;
+  this.animT=0; this.animF=0;
+  this.weapon=null; this.wUses=0;
+  this.blocking=false;
+  this.knockT=0;
+  this.stunT=0;
+  this.dead=false;
+  this.score=def.score||0;
+  this.isPlayer=def===CHAR_DEFS.player;
+  this.isAlly=!!def.isAlly;
+  this.isEnemy=!!def.isEnemy;
+  this.isBoss=!!def.isBoss;
+  // AI state
+  this.aiTargetX=x;
+  this.aiAttackCD=0;
+  this.aiThinkT=0;
+  this.aiTarget=null;
+  // aura
+  this.auraT=0;
+  this.auraPulse=0;
+}
+Fighter.prototype.isGrounded=function(){return this.y>=this.gy-1;};
+Fighter.prototype.useSpecial=function(targets){
+  if(this.spCharges<=0) return;
+  this.spCharges--;
+  this.state='special';this.stateT=40;
+  this.auraT=60;
+  var sc=this.def.specialCol||'#f1c40f';
+  var sp=this.def.special||'必殺技';
+
+  // キャラ別発動エフェクト
+  if(sp==='百裂拳'||sp==='神速連打'){
+    // 連打系：細かいパーティクル大量
+    for(var i=0;i<5;i++) burst(this.x+(i-2)*12,this.y-30,sc,20,true);
+    shake(10);
+  } else if(sp==='岩砕き'||sp==='鬼神拳'||sp==='鬼母拳'){
+    // 一撃系：大爆発
+    burst(this.x,this.y-35,sc,40,true);
+    burst(this.x,this.y-20,'#fff',20,true);
+    shake(22);
+  } else if(sp==='乱舞'||sp==='双竜脚'||sp==='流星蹴'){
+    // 回転系：リング状
+    for(var ri=0;ri<8;ri++){
+      var ra=ri/8*Math.PI*2;
+      burst(this.x+Math.cos(ra)*25,this.y-30+Math.sin(ra)*12,sc,8,true);
+    }
+    shake(14);
+  } else {
+    burst(this.x,this.y-20,sc,28,true);
+    shake(14);
+  }
+
+  ann(sp,sc,'');
+  // 全敵にヒット判定
+  var self=this;
+  targets.forEach(function(t){
+    if(dist(self,t)<90&&!t.dead){
+      t.hp=Math.max(0,t.hp-self.def.katk*2.5);
+      t.knockT=40;t.vx=self.facing*8;t.vy=-6;
+      t.state='hurt';t.stateT=35;
+      burst(t.x,t.y-25,'#fff',16,true);
+      score+=Math.floor(self.def.katk*2.5)*3;
+    }
+  });
+  updateSpUI();
+};
+
+// ═══════════════════════════════════════
+//  PLAYER INPUT
+// ═══════════════════════════════════════
+var _atkPr=false,_katkPr=false,_spPr=false,_thrPr=false,_jumpPr=false,_wpnPr=false;
+function playerInput(){
+  if(!player||player.dead) return;
+  if(['hurt','special','ko'].includes(player.state)) return;
+  var L  = K['KeyA']||K['ArrowLeft'] ||mb.L;
+  var R  = K['KeyD']||K['ArrowRight']||mb.R;
+  var J  = K['KeyW']||K['ArrowUp']   ||mb.U;
+  var A  = K['KeyJ']||mb.atk;        // パンチ（IRON FIST: J）
+  var KA = K['KeyK']||mb.katk;       // キック（IRON FIST: K）
+  var TH = K['KeyU']||mb.thr;        // 投げ  （IRON FIST: U）
+  var SP = K['KeyL']||mb.sp;         // 必殺技（IRON FIST: L）
+  var GD = K['KeyS']||mb.guard;      // ガード（IRON FIST: S）
+  var WP = K['KeyI']||mb.wpnpick;    // 武器拾う（Iキー）
+  var gr = player.isGrounded();
+
+  if(L){player.vx=-player.def.spd; player.facing=-1;}
+  else if(R){player.vx=player.def.spd; player.facing=1;}
+  else player.vx*=0.8;
+
+  if(J&&!_jumpPr&&gr){player.vy=player.def.jumpV; player.state='jump';}
+  _jumpPr=J;
+
+  // ガード（Sキー専用、移動と分離）
+  if(GD&&gr&&(player.state==='idle'||player.state==='walk'||player.state==='block')){
+    player.blocking=true; player.state='block'; player.vx=0; return;
+  }
+  if(!GD&&player.state==='block'){player.state='idle';}
+  player.blocking=(player.state==='block');
+
+  if(player.state==='idle'||player.state==='walk'||player.state==='jump'
+     ||player.state==='atk'||player.state==='katk'){
+    // 必殺技
+    if(SP&&!_spPr){player.useSpecial(enemies);} _spPr=SP;
+    // 投げ（近距離の敵に）
+    if(TH&&!_thrPr&&gr){
+      var tgt=null;
+      enemies.forEach(function(e){if(!e.dead&&Math.abs(e.x-player.x)<60&&Math.abs(e.y-player.y)<30) tgt=e;});
+      if(tgt){
+        player.state='katk'; player.stateT=28; _thrPr=true;
+        tgt.knockT=50; tgt.vx=player.facing*9; tgt.vy=-7;
+        tgt.state='hurt'; tgt.stateT=40;
+        tgt.hp=Math.max(0,tgt.hp-30);
+        burst(tgt.x,tgt.y-25,'#fa0',14,true); shake(10);
+        ann('投げ！','#fa0'); score+=80;
+        if(tgt.hp<=0) onKO(tgt,player);
+      }
+    } else if(!TH) _thrPr=false;
+    // キック（強攻撃）/ ジャンプ中はジャイアントスイング
+    if(KA&&!_katkPr){
+      if(!gr){
+        // ── ジャイアントスイング（空中つかみ投げ）──
+        var swingTgt=null;
+        enemies.forEach(function(e){
+          if(!e.dead&&Math.abs(e.x-player.x)<80&&Math.abs(e.y-player.y)<50) swingTgt=e;
+        });
+        if(swingTgt){
+          player.state='gswing'; player.stateT=50; _katkPr=true;
+          player.swingTarget=swingTgt;
+          swingTgt.state='hurt'; swingTgt.stateT=55;
+          swingTgt.vx=0; swingTgt.vy=0;
+          ann('ジャイアントスイング！','#f1c40f','豪快！');
+          shake(6);
+        } else {
+          // 敵いなければ普通のキック
+          player.state='katk'; player.stateT=22; _katkPr=true;
+          doAttack(player,enemies,player.def.katk,55,true);
+        }
+      } else {
+        player.state='katk'; player.stateT=22; _katkPr=true;
+        doAttack(player,enemies,player.def.katk,55,true);
+      }
+    } else if(!KA) _katkPr=false;
+    // パンチ
+    if(A&&!_atkPr){
+      player.state='atk'; player.stateT=14; _atkPr=true;
+      doAttack(player,enemies,player.def.atk,42,false);
+    } else if(!A) _atkPr=false;
+    // 武器拾う（Iキー）
+    if(WP&&!_wpnPr) pickupOrUseWeapon(player,enemies);
+    _wpnPr=WP;
+  }
+
+  // 攻撃モーション中も移動で向き・アニメを上書き（ただしstateは維持）
+  if(gr&&(L||R)&&(player.state==='atk'||player.state==='katk')){
+    // 移動速度を攻撃中は少し落とす（0.6倍）
+    player.vx*=0.6;
+  }
+
+  if(gr&&(L||R)&&player.state!=='block'&&player.state!=='atk'&&player.state!=='katk'&&player.state!=='special') player.state='walk';
+  if(gr&&!L&&!R&&player.state==='walk') player.state='idle';
+}
+
+function doAttack(attacker,targets,dmg,range,heavy){
+  var hit=false;
+  targets.forEach(function(t){
+    if(t.dead) return;
+    var dx=t.x-attacker.x;
+    var dy=t.y-attacker.y;
+    // 当たり判定：前方向に範囲内、Y軸は緩め
+    var inRange=Math.abs(dx)<range&&Math.abs(dy)<50;
+    var inFront=dx*attacker.facing>-(range*0.4); // 後ろ側も少し当たる
+    if(!inRange||!inFront) return;
+    if(t.hitCD>0) return;
+    var wd=attacker.weapon?WEAPONS[attacker.weapon]:null;
+    var finalDmg=Math.round(dmg*(wd?wd.dmg:1));
+    if(t.blocking) finalDmg=Math.floor(finalDmg*0.15);
+    t.hp=Math.max(0,t.hp-finalDmg);
+    t.hitCD=heavy?28:16;
+    t.vx=attacker.facing*(heavy?5:3);
+    t.vy=heavy?-4:-2;
+    t.state='hurt'; t.stateT=heavy?20:12;
+    if(!t.blocking){t.combo=(t.combo||0)+1; t.comboT=70;}
+    if(wd){
+      if(attacker.wUses===undefined) attacker.wUses=wd.uses; // 念のため初期化
+      attacker.wUses--;
+      if(attacker.wUses<=0){
+        if(attacker.weapon&&WEAPONS[attacker.weapon]) wDrops.push({x:attacker.x,y:attacker.y,type:attacker.weapon});
+        attacker.weapon=null;
+        wd=null; // nullにしてから後続参照を防ぐ
+      }
+    }
+    burst(t.x,t.y-20,heavy?'#f1c40f':'#e74c3c',heavy?14:8,heavy);
+    if(heavy){shake(10);spark2(t.x,t.y-20,8);}else shake(4);
+    if(attacker.isPlayer){
+      score+=finalDmg*2;
+      attacker.sp=Math.min(100,attacker.sp+8);
+      if(attacker.sp>=100&&attacker.spCharges<(attacker.def.maxSp||0)){
+        attacker.spCharges++; attacker.sp=0; updateSpUI();
+        ann('必殺ゲージ！','#f1c40f');
+      }
+      updateHUD();
+    }
+    hit=true;
+    if(t.hp<=0) onKO(t,attacker);
+  });
+  if(hit&&attacker.weapon&&WEAPONS[attacker.weapon]){
+    spark2(attacker.x+attacker.facing*20,attacker.y-25,5);
+  }
+}
+
+function onKO(fighter,killer){
+  fighter.state='ko';fighter.stateT=999;fighter.dead=true;
+  fighter.vy=-5;fighter.vx=(killer?killer.facing:1)*3;
+  burst(fighter.x,fighter.y-20,'#e74c3c',20,true);shake(12);
+  score+=fighter.score||0;
+  if(fighter.weapon&&WEAPONS[fighter.weapon]) wDrops.push({x:fighter.x,y:fighter.y,type:fighter.weapon});
+  fighter.weapon=null;
+  // 回復アイテムドロップ
+  if(fighter.isBoss) tryDropHealBoss(fighter.x,fighter.y);
+  else tryDropHeal(fighter.x,fighter.y);
+  if(fighter.isBoss) onBossKO(fighter);
+  updateHUD();
+}
+
+function pickupOrUseWeapon(f,targets){
+  if(pickupHeal(f)) return;
+  if(!f.weapon){
+    var best=null,bestD=60;
+    wDrops.forEach(function(d){
+      if(!WEAPONS[d.type]) return; // 不正キー除外
+      var dd=dist(f,{x:d.x,y:d.y});
+      if(dd<bestD){bestD=dd;best=d;}
+    });
+    if(best&&WEAPONS[best.type]){
+      f.weapon=best.type;f.wUses=WEAPONS[best.type].uses;
+      wDrops.splice(wDrops.indexOf(best),1);
+      ann(WEAPONS[best.type].label+'GET！','#4fa');
+    }
+  } else {
+    var fw=WEAPONS[f.weapon];
+    if(fw) doAttack(f,targets,fw.dmg*f.def.atk*0.8,fw.reach+30,false);
+    else f.weapon=null; // 不正キーをクリア
+  }
+}
+
+// ═══════════════════════════════════════
+//  ALLY AI
+// ═══════════════════════════════════════
+function allyAI(ally){
+  if(ally.dead||ally.state==='hurt'||ally.state==='ko') return;
+  var gr=ally.isGrounded();
+
+  // 近くに武器or回復アイテムがあれば拾う
+  if(gr&&ally.aiAttackCD<=0){
+    if(pickupHeal(ally)){ally.aiAttackCD=20;return;}
+    if(!ally.weapon){
+      var bw=null,bwd=60;
+      wDrops.forEach(function(d){var dd=dist(ally,{x:d.x,y:d.y});if(dd<bwd){bwd=dd;bw=d;}});
+      if(bw&&WEAPONS[bw.type]){ally.weapon=bw.type;ally.wUses=WEAPONS[bw.type].uses;wDrops.splice(wDrops.indexOf(bw),1);}
+      else if(bw&&!WEAPONS[bw.type]) wDrops.splice(wDrops.indexOf(bw),1); // 不正キーはドロップから除去
+    }
+  }
+
+  // find nearest enemy
+  var tgt=null,bestD=Infinity;
+  enemies.forEach(function(e){
+    if(e.dead) return;
+    var d2=dist(ally,e);
+    if(d2<bestD){bestD=d2;tgt=e;}
+  });
+  if(!tgt){ally.vx*=0.8;return;}
+  var dx=tgt.x-ally.x;
+  ally.facing=dx>0?1:-1;
+  var allyWd=ally.weapon&&WEAPONS[ally.weapon]?WEAPONS[ally.weapon]:null;
+  if(!allyWd) ally.weapon=null; // 不正な武器キーをクリア
+  var range=allyWd?allyWd.reach+30:35;
+  if(Math.abs(dx)>range){
+    ally.vx=ally.facing*ally.def.spd*0.9;
+    if(gr) ally.state='walk';
+  } else {
+    ally.vx=0;
+    if(gr) ally.state='idle';
+    if(ally.aiAttackCD<=0&&gr){
+      var useHeavy=Math.random()<0.3;
+      if(allyWd){
+        ally.state='atk'; ally.stateT=16;
+        doAttack(ally,[tgt],allyWd.dmg*ally.def.atk*0.9,allyWd.reach+30,false);
+        if(ally.wUses===undefined) ally.wUses=allyWd.uses;
+        ally.wUses--;
+        if(ally.wUses<=0){wDrops.push({x:ally.x,y:ally.y,type:ally.weapon});ally.weapon=null;}
+        ally.aiAttackCD=28;
+      } else {
+        ally.state=useHeavy?'katk':'atk';
+        ally.stateT=useHeavy?22:14;
+        doAttack(ally,[tgt],useHeavy?ally.def.katk:ally.def.atk,useHeavy?50:40,useHeavy);
+        ally.aiAttackCD=useHeavy?50:32;
+      }
+    }
+  }
+  if(ally.aiAttackCD>0) ally.aiAttackCD--;
+  if(Math.random()<0.003&&gr) ally.vy=ally.def.jumpV;
+}
+
+// ═══════════════════════════════════════
+//  ENEMY AI
+// ═══════════════════════════════════════
+function enemyAI(e){
+  if(e.dead||e.state==='hurt'||e.state==='ko') return;
+  // find target: player or ally
+  var targets=[player].concat(allies).filter(function(f){return f&&!f.dead;});
+  if(!targets.length){e.vx*=0.8;return;}
+  var tgt=targets[rnd(targets.length)];
+  // occasionally retarget closest
+  if(Math.random()<0.02){
+    var bd=Infinity;
+    targets.forEach(function(t){var d2=dist(e,t);if(d2<bd){bd=d2;tgt=t;}});
+    e.aiTarget=tgt;
+  }
+  if(e.aiTarget&&!e.aiTarget.dead) tgt=e.aiTarget;
+  var dx=tgt.x-e.x,dy=tgt.y-e.y;
+  e.facing=dx>0?1:-1;
+  var gr=e.isGrounded();
+  var range=e.isBoss?70:45;
+  if(Math.abs(dx)>range||Math.abs(dy)>30){
+    e.vx=e.facing*e.def.spd*(e.isBoss?1.1:0.9);
+    var dvY=dy>0?0.6:-0.6;
+    e.y=clamp(e.y+dvY,e.gy-60,e.gy);
+    if(gr) e.state='walk';
+  } else {
+    e.vx=0;if(gr) e.state='idle';
+    if(e.aiAttackCD<=0){
+      var heavy=e.isBoss?Math.random()<0.45:Math.random()<0.25;
+      e.state=heavy?'katk':'atk';e.stateT=heavy?24:16;
+      doAttack(e,[tgt],heavy?e.def.katk:e.def.atk,heavy?60:46,heavy);
+      e.aiAttackCD=e.isBoss?33:(heavy?47:30)+rnd(18);
+    }
+  }
+  if(e.aiAttackCD>0) e.aiAttackCD--;
+  // Boss special: if hp< 30% go berserk
+  if(e.isBoss&&e.hp<e.maxHp*0.4&&Math.random()<0.002){
+    e.state='special';e.stateT=35;e.auraT=40;
+    burst(e.x,e.y-25,e.def.col,20,true);shake(10);
+    doAttack(e,[tgt],e.def.katk*2,80,true);
+    ann('ボス激怒！','#c0392b','全力で来る！');
+  }
+}
+
+// ═══════════════════════════════════════
+//  PHYSICS UPDATE
+// ═══════════════════════════════════════
+function updateGSwing(f){
+  // ジャイアントスイング中：敵を周回させて最後に投げ飛ばす
+  if(f.state!=='gswing') return;
+  var tgt=f.swingTarget;
+  if(!tgt||tgt.dead){f.state='idle';return;}
+  var progress=1-(f.stateT/50); // 0→1
+  var angle=progress*Math.PI*3*f.facing; // 1.5回転
+  var radius=40;
+  tgt.x=f.x+Math.cos(angle)*radius;
+  tgt.y=f.y-20+Math.sin(angle)*radius*0.4;
+  tgt.state='hurt'; tgt.stateT=3;
+  // 最後のフレームで投げ飛ばす
+  if(f.stateT===1){
+    var throwDmg=Math.floor(f.def.katk*2.5);
+    tgt.hp=Math.max(0,tgt.hp-throwDmg);
+    tgt.vx=f.facing*14; tgt.vy=-10;
+    tgt.knockT=60; tgt.state='hurt'; tgt.stateT=60;
+    burst(tgt.x,tgt.y-20,'#f1c40f',22,true); shake(16);
+    ann('SMASH!!','#f1c40f','-'+throwDmg);
+    score+=Math.floor(throwDmg)*3;
+    if(tgt.hp<=0) onKO(tgt,f);
+    f.swingTarget=null;
+    // 投げた敵が他の敵に当たる（連鎖）
+    enemies.forEach(function(e){
+      if(!e.dead&&e!==tgt&&Math.abs(e.x-tgt.x)<60){
+        e.hp=Math.max(0,e.hp-Math.floor(throwDmg*0.5));
+        e.vx=f.facing*7; e.vy=-5;
+        e.state='hurt'; e.stateT=30;
+        if(e.hp<=0) onKO(e,f);
+      }
+    });
+  }
+}
+
+function updateFighter(f){
+  if(f.dead){
+    f.vy+=GRAV;f.x+=f.vx;f.y+=f.vy;
+    f.vx*=0.92;
+    if(f.y>f.gy+80) f.y=f.gy+80; // sink off screen
+    return;
+  }
+  // timers
+  if(f.stateT>0){f.stateT--;if(f.stateT<=0&&f.state!=='ko'&&f.state!=='hurt'&&f.state!=='gswing') f.state='idle';}
+  if(f.hitCD>0) f.hitCD--;
+  if(f.comboT>0){f.comboT--;if(!f.comboT)f.combo=0;}
+  if(f.knockT>0) f.knockT--;
+  if(f.stunT>0){f.stunT--;if(!f.stunT) f.state='idle';}
+  if(f.auraT>0){f.auraT--;f.auraPulse+=0.25;}
+  f.animT++;if(f.animT>6){f.animT=0;f.animF=(f.animF+1)%8;}
+
+  // gravity
+  f.vy+=GRAV;
+  f.x+=f.vx;f.y+=f.vy;
+  // ground
+  if(f.y>=f.gy){f.y=f.gy;f.vy=0;if(f.state==='jump')f.state='idle';}
+  if(f.state==='hurt'&&f.stateT<=0) f.state='idle';
+  // clamp to stage
+  var minX=scrollX+f.def.w,maxX=scrollX+W-f.def.w;
+  f.x=clamp(f.x,minX,maxX);
+  // depth clamp
+  f.gy=clamp(f.gy,H*0.55,H*0.88);
+}
+
+// ═══════════════════════════════════════
+//  DRAW FIGHTER (pixel-art style)
+// ═══════════════════════════════════════
+function drawFighter(f){
+  if(f.dead&&f.y>f.gy+60) return;
+  var wx=f.x-scrollX;
+  var wy=f.y;
+  var SZ=f.def.w>22?3.5:3;
+  ctx.save();
+  ctx.translate(wx,wy);
+
+  // aura
+  if(f.auraT>0){
+    var ap=0.4+0.3*Math.sin(f.auraPulse);
+    ctx.shadowColor=f.def.col;ctx.shadowBlur=20+Math.sin(f.auraPulse)*8;
+    ctx.strokeStyle='rgba('+hexRgb(f.def.col)+','+ap+')';ctx.lineWidth=3;
+    ctx.beginPath();ctx.ellipse(0,-f.def.h*0.5,f.def.w+8,f.def.h*0.55,0,0,Math.PI*2);ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+
+  // shadow on ground
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath();ctx.ellipse(0,2,f.def.w*0.7,4,0,0,Math.PI*2);ctx.fill();
+
+  if(f.state==='ko'||f.dead){
+    // fallen sprite
+    ctx.save();ctx.rotate(f.facing*Math.PI/2);
+    drawCharBody(f,SZ,true);
+    ctx.restore();ctx.restore();return;
+  }
+
+  if(f.facing===-1) ctx.scale(-1,1);
+  drawCharBody(f,SZ,false);
+  ctx.restore();
+
+  // combo text
+  if(f.combo>=2&&f.comboT>0&&f.isPlayer){
+    ctx.save();ctx.translate(wx,wy-f.def.h-20);
+    ctx.font='bold 11px "Zen Antique Soft"';
+    ctx.fillStyle='#f1c40f';ctx.textAlign='center';
+    ctx.fillText(f.combo+' HIT!',0,0);ctx.restore();
+  }
+  // HP bar above enemy/boss
+  if(f.isEnemy&&!f.dead){
+    ctx.save();ctx.translate(wx,wy-f.def.h-14);
+    var bw=f.def.w*2.2;
+    ctx.fillStyle='#1a1008';ctx.fillRect(-bw/2,0,bw,5);
+    ctx.fillStyle=f.isBoss?'#c0392b':'#e74c3c';
+    ctx.fillRect(-bw/2,0,bw*(f.hp/f.maxHp),5);
+    ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.lineWidth=1;
+    ctx.strokeRect(-bw/2,0,bw,5);
+    ctx.restore();
+  }
+}
+
+function drawCharBody(f,SZ,fallen){
+  var col=f.def.col, col2=f.def.col2||'#f5e8c8';
+  var hair=f.def.hairCol||'#1a1008';
+  var h=f.def.h, w=f.def.w;
+  var hurt=(f.state==='hurt');
+  if(hurt) col='#888';
+
+  var st=f.state;
+  var t=f.stateT||0; // 残り時間（大きいほど攻撃直後）
+  var isJump=st==='jump';
+  var isKick=st==='katk';
+  var isPunch=st==='atk';
+  var isFlyKick=isKick&&isJump; // ジャンプ中のキック＝飛び蹴り
+  var isWalk=st==='walk';
+  var isBlock=st==='block';
+  var isSpecial=st==='special';
+
+  // 攻撃アニメ進行度 0→1
+  var atkProgress=isKick||isPunch ? Math.max(0,(1-(t/22))) : 0;
+
+  var bobY=(!fallen&&isWalk)?Math.sin(f.animF*0.8)*1.5:0;
+
+  if(fallen){
+    ctx.fillStyle=col;
+    ctx.fillRect(-h*0.4,-w/2,h*0.72,w);
+    ctx.fillStyle=col2;
+    ctx.beginPath();ctx.arc(-h*0.5,0,w*0.42,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=hair;
+    ctx.beginPath();ctx.ellipse(-h*0.58,0,w*0.38,w*0.28,0,0,Math.PI*2);ctx.fill();
+    return;
+  }
+
+  // ── ジャイアントスイング / gswingモーション ──
+  var isGSwing=st==='gswing';
+  if(isGSwing||isFlyKick){
+    var gp=1-(t/50); // 進行度 0→1
+    var swingAngle=gp*Math.PI*3*(f.facing||1);
+
+    // 体を少し前傾・腰を落とす
+    ctx.save();
+    ctx.rotate(-0.15*Math.sin(swingAngle));
+
+    // 両足（踏ん張り）
+    ctx.fillStyle='#2a1a08';
+    ctx.fillRect(-w*0.4,0,w*0.35,h*0.28);
+    ctx.fillRect(w*0.05,0,w*0.35,h*0.28);
+
+    // 胴体
+    ctx.fillStyle=col;
+    ctx.beginPath();ctx.roundRect(-w/2,-h*0.72,w,h*0.44,2);ctx.fill();
+    drawOutfit(f,w,h,0,col);
+
+    // 両腕を大きく広げて振り回す
+    var armSwing=Math.sin(swingAngle)*18;
+    ctx.fillStyle=col;
+    ctx.fillRect(-w/2-8+armSwing,-h*0.72,10,h*0.32); // 左腕
+    ctx.fillRect(w/2-2-armSwing,-h*0.72,10,h*0.32);  // 右腕
+
+    // 振り回し中の回転エフェクト（軌跡円）
+    if(gp>0.1){
+      ctx.strokeStyle='rgba(241,196,15,'+(gp*0.5)+')';ctx.lineWidth=2;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.arc(0,-h*0.3,42,0,Math.PI*2);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.restore();
+
+    // 頭
+    ctx.fillStyle=col2;
+    ctx.beginPath();ctx.arc(0,-h*0.82,w*0.44,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=hurt?'#e74c3c':'#1a1008';ctx.fillRect(4,-h*0.85,4,4);
+    drawHair(f,w,h,hair,0);
+
+    // 投げ寸前の集中線（gp>0.8）
+    if(gp>0.8){
+      var flash=(gp-0.8)*5;
+      ctx.strokeStyle='rgba(255,220,50,'+flash*0.7+')';ctx.lineWidth=2;
+      for(var li2=0;li2<8;li2++){
+        var la=li2/8*Math.PI*2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(la)*20,Math.sin(la)*20-h*0.4);
+        ctx.lineTo(Math.cos(la)*50,Math.sin(la)*50-h*0.4);
+        ctx.stroke();
+      }
+    }
+    return;
+  }
+
+  // ── 通常キックモーション ──
+  if(isKick&&!isJump){
+    var kick2=Math.sin(Math.min(Math.PI,atkProgress*Math.PI)); // 0→1→0の弧
+    // 軸足
+    ctx.fillStyle='#2a1a08';
+    ctx.fillRect(-w/2*0.5,-bobY,w*0.38,h*0.28);
+    // 蹴り足（前に振り上げる）
+    ctx.save();
+    ctx.translate(w*0.12,-bobY);
+    ctx.rotate(-kick2*1.2); // 後ろから前へ
+    ctx.fillRect(-w*0.15,0,w*0.36,h*0.15);
+    ctx.fillRect(-w*0.15,h*0.15,w*0.36,h*0.16);
+    // 靴先（光る）
+    ctx.fillStyle='#111';
+    ctx.fillRect(-w*0.18,h*0.29,w*0.4,h*0.09);
+    if(kick2>0.5){
+      ctx.fillStyle='rgba(255,200,50,0.6)';
+      ctx.beginPath();ctx.arc(w*0.24,h*0.3,6,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+    // 体
+    ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=f.auraT>0?8:0;
+    ctx.save();ctx.rotate(kick2*0.18);
+    ctx.beginPath();ctx.roundRect(-w/2,-h*0.72-bobY,w,h*0.44,2);ctx.fill();
+    drawOutfit(f,w,h,bobY,col);
+    ctx.restore();
+    ctx.shadowBlur=0;
+    // 腕
+    ctx.fillStyle=col;
+    ctx.fillRect(-w/2-6,-h*0.7-bobY,8,h*0.3);
+    ctx.fillRect(w/2-2,-h*0.7-bobY,8,h*0.3);
+    // 頭
+    ctx.fillStyle=col2;
+    ctx.beginPath();ctx.arc(0,-h*0.82-bobY,w*0.44,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=hurt?'#fff':'#1a1008';ctx.fillRect(4,-h*0.85-bobY,4,4);
+    drawHair(f,w,h,hair,bobY);
+    if(f.weapon) drawWeaponOnFighter(f,w,h,bobY);
+    return;
+  }
+
+  // ── 通常 (idle/walk/jump/punch/block/hurt/special) ──
+
+  // Legs
+  var legL=0, legR=0;
+  if(isWalk){ legL=Math.sin(f.animF*0.8)*10; legR=-legL; }
+  if(isBlock){ legL=4; legR=-4; } // 踏ん張り
+  ctx.fillStyle='#2a1a08';
+  if(isWalk){
+    // 歩行：交互に前後
+    ctx.save();ctx.translate(-w*0.14,-bobY);ctx.rotate(legL*0.05);
+    ctx.fillRect(-w*0.18,0,w*0.36,h*0.28);ctx.restore();
+    ctx.save();ctx.translate(w*0.14,-bobY);ctx.rotate(legR*0.05);
+    ctx.fillRect(-w*0.18,0,w*0.36,h*0.28);ctx.restore();
+  } else {
+    ctx.fillRect(-w/2*0.5,-bobY,w*0.38,h*0.28);
+    ctx.fillRect(w*0.12,-bobY,w*0.38,h*0.28);
+  }
+
+  // Body
+  ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=f.auraT>0?8:0;
+  var bodyTilt=isBlock?0.08:isPunch?-0.1*atkProgress:0;
+  ctx.save();ctx.rotate(bodyTilt);
+  ctx.beginPath();ctx.roundRect(-w/2,-h*0.72-bobY,w,h*0.44,2);ctx.fill();
+  drawOutfit(f,w,h,bobY,col);
+  ctx.restore();
+  ctx.shadowBlur=0;
+
+  // Arms
+  var armOff=isPunch?Math.sin(atkProgress*Math.PI)*14:0;
+  var armLift=isBlock?-h*0.06:0;
+  ctx.fillStyle=col;
+  ctx.fillRect(-w/2-6,-h*0.7-bobY+armLift,8,h*0.3);
+  ctx.fillRect(w/2-2+armOff,-h*0.7-bobY,8,h*0.3);
+  if(isPunch){
+    ctx.fillStyle=col2;
+    ctx.beginPath();ctx.arc(w/2+armOff,-h*0.58-bobY,5,0,Math.PI*2);ctx.fill();
+  }
+  if(isBlock){
+    // ガードポーズ：両腕を前に
+    ctx.fillStyle=col;
+    ctx.fillRect(-w/2-2,-h*0.72-bobY,10,h*0.28);
+    ctx.fillRect(w/2-8,-h*0.72-bobY,10,h*0.28);
+  }
+  if(isSpecial){
+    var sc=f.def.specialCol||'#f1c40f';
+    var sp=f.def.special||'';
+    var sf=f.stateT; // 残りフレーム（40→0）
+    var sp_prog=Math.max(0,Math.min(1,1-(sf/40))); // 進行度0→1
+    var gt=gameTime*0.18; // 高速タイマー
+    var sp_pulse=Math.sin(gt*2.5);
+
+    // ── 共通：オーラリング2重 ──
+    ctx.save();
+    ctx.globalAlpha=0.35+sp_pulse*0.2;
+    ctx.strokeStyle=sc;ctx.lineWidth=3+sp_pulse*2;
+    ctx.beginPath();ctx.arc(0,-h*0.45-bobY,w*1.1+sp_pulse*5,0,Math.PI*2);ctx.stroke();
+    ctx.globalAlpha=0.15+sp_pulse*0.1;
+    ctx.strokeStyle=sc;ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(0,-h*0.45-bobY,w*1.7-sp_pulse*3,0,Math.PI*2);ctx.stroke();
+    ctx.globalAlpha=0.10;
+    ctx.fillStyle=sc;
+    ctx.beginPath();ctx.arc(0,-h*0.45-bobY,w*1.5,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.restore();
+
+    if(sp==='百裂拳'||sp==='神速連打'){
+      // 高速連打：両腕が残像を描いて前後に激しく動く
+      for(var si=0;si<4;si++){
+        var sOff=Math.sin((gt+si)*2.2)*20*(1-si*0.15);
+        ctx.globalAlpha=1-si*0.22;
+        ctx.fillStyle=sc;
+        ctx.fillRect(w/2+sOff,-h*0.68-bobY,9,h*0.28);
+        ctx.fillRect(-w/2-9-sOff*0.5,-h*0.68-bobY,9,h*0.28);
+        ctx.beginPath();ctx.arc(w/2+sOff+4,-h*0.57-bobY,6-si,0,Math.PI*2);ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      // 衝撃波エフェクト
+      if(sp_prog>0.3){
+        ctx.strokeStyle=sc;ctx.lineWidth=2;
+        ctx.globalAlpha=(1-sp_prog)*0.8;
+        for(var sw=0;sw<3;sw++){
+          ctx.beginPath();ctx.arc(w/2+16,-h*0.57-bobY,(sp_prog*30)+sw*8,0,Math.PI*2);ctx.stroke();
+        }
+        ctx.globalAlpha=1;
+      }
+    } else if(sp==='岩砕き'||sp==='鬼神拳'||sp==='鬼母拳'){
+      // 大振り一撃：体を大きく反らせて振り下ろす
+      var swing=Math.sin(sp_prog*Math.PI);
+      ctx.save();ctx.rotate(-swing*0.4*f.facing);
+      // 振り上げた腕（大）
+      ctx.fillStyle=sc;
+      ctx.fillRect(w/2-4,-h*0.85-bobY-swing*12,12,h*0.42+swing*12);
+      ctx.restore();
+      // 拳（大きく光る）
+      ctx.fillStyle=sc;
+      ctx.globalAlpha=0.7+sp_pulse*0.3;
+      ctx.beginPath();ctx.arc(w/2+14*f.facing,-h*0.55-bobY+swing*8,9+swing*5,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+      // 衝撃亀裂線
+      if(sp_prog>0.5){
+        var crack=sp_prog-0.5;
+        ctx.strokeStyle=sc;ctx.lineWidth=2;ctx.globalAlpha=crack*1.6;
+        for(var cl=0;cl<5;cl++){
+          var ca=(cl/5)*Math.PI-Math.PI*0.2;
+          ctx.beginPath();ctx.moveTo(w/2+14*f.facing,-h*0.55-bobY);
+          ctx.lineTo(w/2+14*f.facing+Math.cos(ca)*crack*40,-h*0.55-bobY+Math.sin(ca)*crack*30);ctx.stroke();
+        }
+        ctx.globalAlpha=1;
+      }
+    } else if(sp==='乱舞'||sp==='双竜脚'||sp==='流星蹴'){
+      // 回転乱舞：体ごと高速回転しながら連続攻撃
+      var spin=gt*3.0;
+      ctx.save();ctx.rotate(Math.sin(spin)*0.6);
+      ctx.fillStyle=sc;
+      for(var ri=0;ri<6;ri++){
+        var ra=spin+ri*(Math.PI*2/6);
+        ctx.globalAlpha=0.65-ri*0.08;
+        ctx.beginPath();ctx.arc(Math.cos(ra)*22,-h*0.5-bobY+Math.sin(ra)*11,6,0,Math.PI*2);ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      ctx.strokeStyle=sc;ctx.lineWidth=3;ctx.globalAlpha=0.7;
+      ctx.beginPath();ctx.moveTo(0,-h*0.3-bobY);ctx.bezierCurveTo(w*0.8,-h*0.1-bobY,w*1.2,-h*0.5-bobY,w/2+18,-h*0.55-bobY);ctx.stroke();
+      ctx.globalAlpha=1;
+      ctx.restore();
+    } else if(sp==='鬼蜘蛛斬'||sp==='制空拳'){
+      // 広範囲斬り：横に大きく腕を振る
+      var slash=Math.sin(sp_prog*Math.PI);
+      ctx.save();ctx.rotate(slash*0.3*(f.facing||1));
+      ctx.strokeStyle=sc;ctx.lineWidth=4;ctx.globalAlpha=0.8;
+      // 斬撃弧
+      ctx.beginPath();
+      ctx.arc(0,-h*0.55-bobY,w*1.2,
+        -Math.PI*0.8+slash*0.6,
+        Math.PI*0.8-slash*0.6);
+      ctx.stroke();
+      ctx.lineWidth=2;ctx.globalAlpha=0.4;
+      ctx.beginPath();ctx.arc(0,-h*0.55-bobY,w*1.5,-Math.PI*0.6,Math.PI*0.6);ctx.stroke();
+      ctx.globalAlpha=1;
+      // 伸びる腕
+      ctx.fillStyle=sc;
+      ctx.fillRect(w/2-2,-h*0.72-bobY,w*0.7*slash,h*0.28);
+      ctx.restore();
+    } else {
+      // デフォルト必殺：全方位爆発エフェクト
+      for(var di=0;di<8;di++){
+        var da=di/8*Math.PI*2+gt*1.5;
+        var dr=(0.3+sp_prog*0.7)*w*1.8;
+        ctx.fillStyle=sc;
+        ctx.globalAlpha=(1-sp_prog)*0.85;
+        ctx.beginPath();ctx.arc(Math.cos(da)*dr,-h*0.5-bobY+Math.sin(da)*dr*0.5,5+sp_prog*4,0,Math.PI*2);ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      ctx.fillStyle=sc;
+      var sa2=Math.sin(gt*3.0)*18;
+      ctx.fillRect(w/2-2+sa2,-h*0.68-bobY,9,h*0.28);
+      ctx.fillRect(-w/2-6-sa2*0.5,-h*0.68-bobY,9,h*0.28);
+    }
+
+    // ── 共通：必殺技名フラッシュ（頭上・グロー付き）──
+    ctx.save();
+    // 登場フェーズ: sp_prog<0.3でフェードイン、それ以降は常時表示
+    var nameAlpha=sp_prog<0.3?(sp_prog/0.3):1.0;
+    ctx.globalAlpha=nameAlpha*0.95;
+    ctx.fillStyle=sc;
+    ctx.font='bold '+(11+sp_pulse*2)+'px "Noto Sans JP",sans-serif';
+    ctx.textAlign='center';
+    ctx.shadowColor=sc;ctx.shadowBlur=16+sp_pulse*6;
+    ctx.fillText(sp, 0, -h*1.12-bobY-sp_pulse*2);
+    // 2重描きでグロー強化
+    ctx.globalAlpha=nameAlpha*0.4;
+    ctx.font='bold '+(15+sp_pulse*3)+'px "Noto Sans JP",sans-serif';
+    ctx.fillText(sp, 0, -h*1.12-bobY-sp_pulse*2);
+    ctx.shadowBlur=0;
+    ctx.restore();
+  }
+
+  // Weapon（スイングあり）
+  if(f.weapon) drawWeaponOnFighter(f,w,h,bobY);
+
+  // Head
+  var headTilt=isPunch?atkProgress*0.08:isBlock?0.05:0;
+  ctx.save();ctx.rotate(headTilt);
+  ctx.fillStyle=col2;
+  ctx.beginPath();ctx.arc(0,-h*0.82-bobY,w*0.44,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=hurt?'#fff':'#1a1008';
+  ctx.fillRect(4,-h*0.85-bobY,4,4);
+  if(hurt){ctx.fillStyle='#e74c3c';ctx.fillRect(4,-h*0.85-bobY,4,4);}
+  ctx.restore();
+  drawHair(f,w,h,hair,bobY);
+}
+
+function drawOutfit(f,w,h,bobY,col){
+  var outfit=f.def.outfit||'suit';
+  if(outfit==='uniform'){
+    ctx.fillStyle='#f5e8c8';
+    ctx.beginPath();ctx.moveTo(-4,-h*0.72-bobY);ctx.lineTo(0,-h*0.55-bobY);ctx.lineTo(4,-h*0.72-bobY);ctx.fill();
+    ctx.fillStyle='#d4a017';
+    for(var bi=0;bi<3;bi++) ctx.fillRect(-1,-h*0.65+bi*7-bobY,2,2);
+  } else if(outfit==='suit'){
+    ctx.fillStyle='#f0f0f0';
+    ctx.fillRect(-w*0.22,-h*0.72-bobY,w*0.44,h*0.44);
+    ctx.fillStyle=col;
+    ctx.beginPath();ctx.moveTo(-w/2,-h*0.72-bobY);ctx.lineTo(-w*0.06,-h*0.72-bobY);ctx.lineTo(-w*0.06,-h*0.34-bobY);ctx.lineTo(-w/2,-h*0.38-bobY);ctx.fill();
+    ctx.beginPath();ctx.moveTo(w/2,-h*0.72-bobY);ctx.lineTo(w*0.06,-h*0.72-bobY);ctx.lineTo(w*0.06,-h*0.34-bobY);ctx.lineTo(w/2,-h*0.38-bobY);ctx.fill();
+    ctx.fillStyle='#c0392b';
+    ctx.beginPath();ctx.moveTo(-3,-h*0.70-bobY);ctx.lineTo(3,-h*0.70-bobY);ctx.lineTo(4,-h*0.50-bobY);ctx.lineTo(0,-h*0.44-bobY);ctx.lineTo(-4,-h*0.50-bobY);ctx.fill();
+  } else if(outfit==='china'){
+    ctx.fillStyle='#f5e8c8';
+    ctx.fillRect(-w*0.12,-h*0.72-bobY,w*0.24,h*0.12);
+    ctx.fillStyle=col;
+    ctx.fillRect(-w*0.04,-h*0.72-bobY,w*0.08,h*0.12);
+    ctx.fillStyle='#d4a017';
+    for(var ci=0;ci<3;ci++){
+      ctx.beginPath();ctx.arc(-w*0.22,-h*0.65+ci*8-bobY,2.5,0,Math.PI*2);ctx.fill();
+      ctx.fillRect(-w*0.22,-h*0.65+ci*8-bobY,w*0.44,1.5);
+    }
+    ctx.strokeStyle='rgba(212,160,23,0.5)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(w*0.42,-h*0.45-bobY);ctx.lineTo(w*0.42,-h*0.28-bobY);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-w*0.42,-h*0.45-bobY);ctx.lineTo(-w*0.42,-h*0.28-bobY);ctx.stroke();
+  } else if(outfit==='happi'){
+    ctx.fillStyle='rgba(255,255,255,0.18)';
+    ctx.beginPath();ctx.moveTo(-w/2,-h*0.72-bobY);ctx.lineTo(-w*0.1,-h*0.72-bobY);ctx.lineTo(0,-h*0.52-bobY);ctx.lineTo(-w/2,-h*0.44-bobY);ctx.fill();
+    ctx.beginPath();ctx.moveTo(w/2,-h*0.72-bobY);ctx.lineTo(w*0.1,-h*0.72-bobY);ctx.lineTo(0,-h*0.52-bobY);ctx.lineTo(w/2,-h*0.44-bobY);ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,0.35)';
+    ctx.fillRect(-w/2,-h*0.43-bobY,w,h*0.08);
+    ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(0,-h*0.58-bobY,5,0,Math.PI*2);ctx.stroke();
+  } else if(outfit==='tank'){
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    ctx.fillRect(-w/2,-h*0.72-bobY,w*0.14,h*0.44);
+    ctx.fillRect(w/2-w*0.14,-h*0.72-bobY,w*0.14,h*0.44);
+    ctx.strokeStyle='rgba(0,0,0,0.3)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(0,-h*0.68-bobY);ctx.lineTo(0,-h*0.48-bobY);ctx.stroke();
+    ctx.beginPath();ctx.arc(0,-h*0.60-bobY,w*0.28,0.2,Math.PI-0.2);ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(-w*0.32,-h*0.72-bobY);ctx.lineTo(-w*0.32,-h*0.66-bobY);ctx.lineTo(w*0.32,-h*0.66-bobY);ctx.lineTo(w*0.32,-h*0.72-bobY);ctx.stroke();
+  } else if(outfit==='track'){
+    ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(-w/2,-h*0.72-bobY);ctx.lineTo(-w/2,-h*0.28-bobY);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(w/2,-h*0.72-bobY);ctx.lineTo(w/2,-h*0.28-bobY);ctx.stroke();
+    ctx.strokeStyle='rgba(200,200,200,0.4)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,-h*0.72-bobY);ctx.lineTo(0,-h*0.44-bobY);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.15)';
+    ctx.fillRect(-w/2,-h*0.56-bobY,w,h*0.07);
+  } else if(outfit==='coat'){
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    ctx.fillRect(-w/2,-h*0.72-bobY,w,h*0.44);
+    ctx.fillStyle=col;
+    ctx.beginPath();ctx.moveTo(-w/2,-h*0.72-bobY);ctx.lineTo(0,-h*0.56-bobY);ctx.lineTo(w/2,-h*0.72-bobY);ctx.lineTo(w/2,-h*0.28-bobY);ctx.lineTo(-w/2,-h*0.28-bobY);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    for(var oi=0;oi<4;oi++) ctx.fillRect(-1,-h*0.68+oi*8-bobY,2,2);
+    ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1;
+    ctx.strokeRect(-w/2,-h*0.72-bobY,w,h*0.44);
+  }
+}
+
+function drawHair(f,w,h,hair,bobY){
+  ctx.fillStyle=hair;
+  if(f.def.isQueen||f.def.isFemBoss){
+    ctx.beginPath();ctx.ellipse(0,-h*0.92-bobY,w*0.5,w*0.35,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.moveTo(-w*0.5,-h*0.88-bobY);ctx.lineTo(-w*0.7,-h*1.0-bobY);
+    ctx.lineTo(-w*0.3,-h*0.94-bobY);ctx.fill();
+  } else if(f.def.isSurvivalBoss&&false){
+    // unused
+  } else if(f.def.isFinal||f.def.isSurvivalBoss){
+    ctx.fillRect(-w*0.44,-h*0.97-bobY,w*0.88,w*0.28);
+    ctx.fillStyle='#c0392b';ctx.fillRect(2,-h*0.82-bobY,1,9);
+  } else if(f.def.isExCop){
+    // 角刈り・元警官
+    ctx.fillRect(-w*0.42,-h*0.97-bobY,w*0.84,w*0.22);
+    ctx.fillStyle='#666';ctx.fillRect(-w*0.38,-h*0.83-bobY,w*0.76,6); // ヒゲ
+  } else if(f.def.isOyabun){
+    // 丸刈り・巨漢
+    ctx.beginPath();ctx.arc(0,-h*0.86-bobY,w*0.48,Math.PI,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#555';ctx.fillRect(-w*0.3,-h*0.83-bobY,w*0.6,5); // 口ヒゲ
+  } else if(f.def.isTwins){
+    // ツーブロック
+    ctx.fillRect(-w*0.44,-h*0.97-bobY,w*0.88,w*0.2);
+    ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillRect(-w*0.2,-h*0.97-bobY,w*0.4,w*0.2);
+  } else if(f.def.isGanzo){
+    ctx.beginPath();ctx.arc(0,-h*0.86-bobY,w*0.46,Math.PI,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#222';ctx.fillRect(-w*0.2,-h*0.83-bobY,w*0.4,4);
+  } else if(f.def.isMitsuki){
+    ctx.beginPath();ctx.ellipse(0,-h*0.92-bobY,w*0.5,w*0.35,0,0,Math.PI*2);ctx.fill();
+    ctx.fillRect(-w*0.5,-h*0.9-bobY,w*0.22,h*0.35);
+  } else if(f.def.isShinki){
+    ctx.fillStyle='#ff0000';
+    for(var sp2=0;sp2<7;sp2++){
+      var sang2=-Math.PI*0.7+sp2*0.23;
+      ctx.beginPath();
+      ctx.moveTo(0,-h*0.9-bobY);
+      ctx.lineTo(Math.cos(sang2)*w*0.8,-h*0.9-bobY-w*0.8);
+      ctx.lineTo(Math.cos(sang2+0.12)*w*0.5,-h*0.9-bobY-w*0.5);
+      ctx.fill();
+    }
+  } else {
+    ctx.fillStyle=hair;
+    ctx.beginPath();
+    ctx.moveTo(-w*0.4,-h*0.82-bobY);
+    ctx.quadraticCurveTo(0,-h*1.05-bobY,w*0.4,-h*0.82-bobY);
+    ctx.fill();
+  }
+}
+
+function drawWeaponOnFighter(f,w,h,bobY){
+  var wd=WEAPONS[f.weapon];
+  if(!wd) return;
+  var t=f.stateT||0;
+  var isAtk=f.state==='atk'||f.state==='katk';
+  // スイング進行 0→1 アーク（攻撃モーション中）
+  var swingRaw=isAtk?Math.max(0,(1-(t/22))):0;
+  var swing=Math.sin(swingRaw*Math.PI); // 0→1→0
+
+  // 常に手元に表示：idle/walkは構え、攻撃時はスイング
+  // アーム伸び量
+  var armFwd=isAtk?swing*14:0;
+
+  // 基本角度：構え=少し前傾、攻撃=大きく振る
+  var holdAng=0.28;
+  var swingAng=isAtk ? holdAng - swing*2.4 : holdAng;
+
+  ctx.save();
+  ctx.translate(w/2+4+armFwd,(-h*0.60)-bobY);
+  ctx.rotate(swingAng);
+  ctx.lineCap='round';ctx.lineJoin='round';
+
+  var c=wd.col;
+
+  if(f.weapon==='bat'){
+    // グリップ
+    ctx.strokeStyle='#4a2a08';ctx.lineWidth=6;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-14);ctx.stroke();
+    // バレル
+    ctx.strokeStyle=c;ctx.lineWidth=8;
+    ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(0,-30);ctx.stroke();
+    // ノブ
+    ctx.strokeStyle='#d4a017';ctx.lineWidth=10;
+    ctx.beginPath();ctx.moveTo(0,-26);ctx.lineTo(0,-33);ctx.stroke();
+    // スイング軌跡
+    if(swing>0.3){
+      ctx.strokeStyle='rgba(255,200,30,'+swing*0.5+')';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(0,-28,16,Math.PI*0.6,Math.PI*1.6);ctx.stroke();
+    }
+
+  } else if(f.weapon==='bokken'){
+    // 右手（メイン・前に振る）- 親のsave/translate/rotateそのまま
+    ctx.strokeStyle='#4a2a08';ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-11);ctx.stroke();
+    ctx.fillStyle='#8B5E3C';ctx.fillRect(-4,-12,8,3);
+    ctx.strokeStyle=c;ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(2,-32);ctx.stroke();
+    if(swing>0.3){
+      ctx.strokeStyle='rgba(180,120,40,'+swing*0.55+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(2,-28,13,Math.PI*0.6,Math.PI*1.7);ctx.stroke();
+    }
+    // 左手（逆手）- いったんrestoreして別位置にsave
+    ctx.restore();
+    ctx.save();
+    var lx2=-(w/2+4+armFwd);
+    var ly2=(-h*0.60)-bobY;
+    var r2Ang=isAtk?(0.5+swing*1.4):-0.25;
+    ctx.translate(lx2,ly2);
+    ctx.rotate(r2Ang);
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.strokeStyle='#4a2a08';ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-10);ctx.stroke();
+    ctx.fillStyle='#8B5E3C';ctx.fillRect(-4,-11,8,3);
+    ctx.strokeStyle=c;ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(-2,-30);ctx.stroke();
+    if(swing>0.4){
+      ctx.strokeStyle='rgba(180,120,40,'+swing*0.4+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(-2,-26,10,Math.PI*1.2,Math.PI*2.2);ctx.stroke();
+    }
+
+  } else if(f.weapon==='chain'){
+    var sp=swing*14;
+    ctx.strokeStyle=c;ctx.lineWidth=3;
+    for(var ci=0;ci<6;ci++){
+      var lcx=ci*5-8+sp*0.25;
+      var lcy=ci*4.5-10-sp*0.6;
+      ctx.beginPath();ctx.arc(lcx,lcy,3,0,Math.PI*2);ctx.stroke();
+    }
+    if(swing>0.4){
+      ctx.strokeStyle='rgba(220,220,220,'+swing*0.45+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,-4,20,Math.PI*0.9,Math.PI*2.1);ctx.stroke();
+    }
+
+  } else if(f.weapon==='nunchaku'){
+    // 棒1
+    ctx.strokeStyle=c;ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-16);ctx.stroke();
+    // 紐
+    ctx.strokeStyle='#5a3a1a';ctx.lineWidth=2;
+    var ropeSwing=swing*12;
+    ctx.beginPath();ctx.moveTo(0,-16);ctx.quadraticCurveTo(8+ropeSwing,-20,6+ropeSwing,-28);ctx.stroke();
+    // 棒2（振れる）
+    ctx.strokeStyle=c;ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(6+ropeSwing,-28);ctx.lineTo(6+ropeSwing,-42);ctx.stroke();
+    if(swing>0.5){
+      ctx.strokeStyle='rgba(160,100,30,'+swing*0.5+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(6+ropeSwing,-36,10,0,Math.PI*2);ctx.stroke();
+    }
+
+  } else if(f.weapon==='pipe'){
+    ctx.strokeStyle=c;ctx.lineWidth=7;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(3,-30);ctx.stroke();
+    // 端の金属感
+    ctx.strokeStyle='#aab';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(3,-27);ctx.lineTo(4,-33);ctx.stroke();
+    if(swing>0.4){
+      ctx.strokeStyle='rgba(120,140,200,'+swing*0.45+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(4,-30,12,Math.PI*0.7,Math.PI*1.8);ctx.stroke();
+    }
+
+  } else if(f.weapon==='cutter'){
+    // 本体
+    ctx.fillStyle='#666';
+    ctx.fillRect(-4,0,8,-14);
+    // 刃
+    ctx.fillStyle='#ddd';
+    ctx.beginPath();ctx.moveTo(4,-10);ctx.lineTo(8,-14);ctx.lineTo(4,-14);ctx.fill();
+    if(swing>0.5){
+      ctx.strokeStyle='rgba(220,220,220,'+swing*0.6+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(6,-13,8,Math.PI*0.8,Math.PI*1.6);ctx.stroke();
+    }
+
+  } else if(f.weapon==='shovel'){
+    // 柄
+    ctx.strokeStyle='#6B4C2A';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(1,-26);ctx.stroke();
+    // ヘッド
+    ctx.fillStyle=c;
+    ctx.beginPath();
+    ctx.moveTo(-8,-26);ctx.lineTo(8,-26);ctx.lineTo(6,-34);ctx.lineTo(-6,-34);ctx.closePath();
+    ctx.fill();
+    if(swing>0.4){
+      ctx.strokeStyle='rgba(150,150,180,'+swing*0.45+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,-32,12,Math.PI*0.6,Math.PI*1.6);ctx.stroke();
+    }
+
+  } else if(f.weapon==='bottle'){
+    ctx.fillStyle=c;ctx.globalAlpha=0.9;
+    ctx.fillRect(-3,0,6,-14);
+    ctx.fillRect(-5,-14,10,-5);
+    ctx.globalAlpha=1;
+    if(!isAtk){
+      ctx.fillStyle='rgba(200,255,200,0.3)';
+      ctx.beginPath();ctx.arc(0,-16,3,0,Math.PI*2);ctx.fill();
+    }
+    if(swing>0.5){
+      ctx.strokeStyle='rgba(100,200,100,'+swing*0.5+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,-17,9,0,Math.PI*2);ctx.stroke();
+    }
+
+  } else if(f.weapon==='katana'){
+    // グリップ
+    ctx.strokeStyle='#2a1a08';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-12);ctx.stroke();
+    ctx.strokeStyle='#d4a017';ctx.lineWidth=7;
+    ctx.beginPath();ctx.moveTo(-4,-10);ctx.lineTo(4,-10);ctx.stroke(); // 鍔
+    // 刀身
+    ctx.strokeStyle=c;ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(1,-40);ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(-1,-12);ctx.lineTo(0,-40);ctx.stroke(); // 刃紋
+    if(swing>0.3){
+      ctx.strokeStyle='rgba(200,220,255,'+swing*0.7+')';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(0,-32,18,Math.PI*0.5,Math.PI*1.5);ctx.stroke();
+    }
+
+  } else if(f.weapon==='hammer'){
+    // 柄
+    ctx.strokeStyle='#5a3a1a';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-22);ctx.stroke();
+    // ヘッド
+    ctx.fillStyle=c;ctx.fillRect(-10,-30,20,14);
+    ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.strokeRect(-10,-30,20,14);
+    if(swing>0.4){
+      ctx.strokeStyle='rgba(180,180,180,'+swing*0.6+')';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(0,-26,16,Math.PI*0.6,Math.PI*1.5);ctx.stroke();
+    }
+
+  } else if(f.weapon==='umbrella'){
+    // 柄
+    ctx.strokeStyle='#4a2a1a';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-28);ctx.stroke();
+    // 傘部分
+    ctx.fillStyle=c;ctx.globalAlpha=0.85;
+    ctx.beginPath();ctx.arc(0,-28,12,Math.PI,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.strokeStyle='#8b0000';ctx.lineWidth=1;
+    for(var ui=0;ui<5;ui++){
+      var ua=Math.PI+ui*(Math.PI/4);
+      ctx.beginPath();ctx.moveTo(0,-28);ctx.lineTo(Math.cos(ua)*12,Math.sin(ua)*12-28);ctx.stroke();
+    }
+    // 先端
+    ctx.strokeStyle='#aaa';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(0,-40);ctx.lineTo(0,-42);ctx.stroke();
+    if(swing>0.3){
+      ctx.strokeStyle='rgba(200,50,50,'+swing*0.5+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,-30,16,Math.PI*0.6,Math.PI*1.6);ctx.stroke();
+    }
+
+  } else if(f.weapon==='rod'){
+    // 鉄筋（長めのまっすぐな棒）
+    ctx.strokeStyle=c;ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(-2,0);ctx.lineTo(2,-36);ctx.stroke();
+    ctx.strokeStyle='rgba(180,200,180,0.5)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-36);ctx.stroke();
+    if(swing>0.3){
+      ctx.strokeStyle='rgba(160,200,160,'+swing*0.5+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,-28,20,Math.PI*0.5,Math.PI*1.6);ctx.stroke();
+    }
+
+  } else if(f.weapon==='stun'){
+    // スタンガン本体
+    ctx.fillStyle='#333';ctx.fillRect(-4,0,8,-14);
+    // 電極
+    ctx.fillStyle='#888';ctx.fillRect(-5,-14,4,4);ctx.fillRect(1,-14,4,4);
+    // 電撃エフェクト
+    var stime=Date.now()*0.01;
+    if(isAtk||Math.sin(stime)>0.3){
+      ctx.strokeStyle='rgba(255,230,0,'+(0.6+Math.sin(stime)*0.4)+')';ctx.lineWidth=2;
+      ctx.shadowColor='#ffe000';ctx.shadowBlur=8;
+      ctx.beginPath();
+      ctx.moveTo(-5,-14);ctx.lineTo(-2,-18);ctx.lineTo(2,-16);ctx.lineTo(5,-14);
+      ctx.stroke();ctx.shadowBlur=0;
+    }
+    if(swing>0.4){
+      ctx.strokeStyle='rgba(255,230,0,'+swing*0.7+')';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(0,-14,10,Math.PI*0.7,Math.PI*1.5);ctx.stroke();
+    }
+
+  } else if(f.weapon==='kusari'){
+    // 分銅鎖：長い鎖＋重り
+    var ks=swing*18;
+    ctx.strokeStyle=c;ctx.lineWidth=3;
+    for(var ki=0;ki<8;ki++){
+      var klx=ki*4-8+ks*0.3+Math.sin(ki*0.8+ks*0.1)*3;
+      var kly=ki*4-8-ks*0.8;
+      ctx.beginPath();ctx.arc(klx,kly,2.5,0,Math.PI*2);ctx.stroke();
+    }
+    // 分銅
+    ctx.fillStyle=c;
+    ctx.beginPath();ctx.arc(8+ks*0.3,-8-ks*0.8+32,6,0,Math.PI*2);ctx.fill();
+    if(swing>0.4){
+      ctx.strokeStyle='rgba(212,160,23,'+swing*0.5+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(8,-4,24,Math.PI*0.7,Math.PI*2.1);ctx.stroke();
+    }
+
+  } else if(f.weapon==='knife'){
+    // グリップ
+    ctx.fillStyle='#2a1a08';ctx.fillRect(-3,0,6,-10);
+    // 鍔
+    ctx.fillStyle='#555';ctx.fillRect(-5,-10,10,3);
+    // 刃
+    ctx.fillStyle=c;
+    ctx.beginPath();ctx.moveTo(-2,-13);ctx.lineTo(4,-13);ctx.lineTo(2,-28);ctx.lineTo(-2,-13);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.4)';
+    ctx.beginPath();ctx.moveTo(2,-13);ctx.lineTo(3,-13);ctx.lineTo(2,-28);ctx.fill();
+    if(swing>0.5){
+      ctx.strokeStyle='rgba(220,220,220,'+swing*0.7+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(2,-22,8,Math.PI*0.6,Math.PI*1.6);ctx.stroke();
+    }
+
+  } else if(f.weapon==='sign'){
+    // 標識ポール
+    ctx.strokeStyle='#aaa';ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-24);ctx.stroke();
+    // 標識板（三角）
+    ctx.fillStyle=c;
+    ctx.beginPath();ctx.moveTo(0,-38);ctx.lineTo(-12,-24);ctx.lineTo(12,-24);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(0,-36);ctx.lineTo(-10,-25);ctx.lineTo(10,-25);ctx.closePath();ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='bold 8px sans-serif';ctx.textAlign='center';
+    ctx.fillText('!',0,-29);
+    if(swing>0.4){
+      ctx.strokeStyle='rgba(231,76,60,'+swing*0.5+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,-32,16,Math.PI*0.6,Math.PI*1.6);ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+function hexRgb(hex){
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return r+','+g+','+b;
+}
+
+// ═══════════════════════════════════════
+//  STAGE BACKGROUNDS
+// ═══════════════════════════════════════
+function drawBG(stageIdx){
+  var s=STAGES[stageIdx];
+  var ox=scrollX;
+
+  if(s.bgType==='school'){
+    // 空
+    var sk=ctx.createLinearGradient(0,0,0,H*0.58);
+    sk.addColorStop(0,'#c8ddf0');sk.addColorStop(1,'#e8f4ff');
+    ctx.fillStyle=sk;ctx.fillRect(0,0,W,H*0.58);
+
+    // 校舎（遠景・パララックス 0.2倍）
+    ctx.fillStyle='#c4b89a';
+    for(var bi=0;bi<8;bi++){
+      var bx=((bi*200)-(ox*0.2))%((8*200));
+      if(bx<-200) bx+=8*200;
+      ctx.fillRect(bx,H*0.06,170,H*0.54);
+      ctx.fillStyle='#b0a488';ctx.fillRect(bx+8,H*0.10,154,H*0.50);
+      // 窓
+      ctx.fillStyle='#8bb4d8';
+      for(var wr=0;wr<3;wr++) for(var wc2=0;wc2<5;wc2++){
+        ctx.fillRect(bx+14+wc2*28,H*0.13+wr*58,20,30);
+        ctx.strokeStyle='#6a8fa8';ctx.lineWidth=1;
+        ctx.strokeRect(bx+14+wc2*28,H*0.13+wr*58,20,30);
+      }
+      ctx.fillStyle='#c4b89a';
+    }
+
+    // 床
+    var gd=ctx.createLinearGradient(0,H*0.6,0,H);
+    gd.addColorStop(0,'#c8b48a');gd.addColorStop(1,'#8a7455');
+    ctx.fillStyle=gd;ctx.fillRect(0,H*0.6,W,H*0.4);
+    // タイル目地
+    ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=1;
+    var toff=ox%60;
+    for(var tx=-toff;tx<W+60;tx+=60){ctx.beginPath();ctx.moveTo(tx,H*0.6);ctx.lineTo(tx,H);ctx.stroke();}
+    for(var ty2=H*0.6;ty2<H;ty2+=40){ctx.beginPath();ctx.moveTo(0,ty2);ctx.lineTo(W,ty2);ctx.stroke();}
+    // ロッカー（パララックス 1.0倍 = 地上オブジェクト）
+    for(var li=0;li<12;li++){
+      var lx=li*200-(ox%2400);
+      if(lx<-20) lx+=2400;
+      if(lx>W+20) continue;
+      ctx.fillStyle='#5a7a5a';ctx.fillRect(lx,H*0.6,18,H*0.25);
+      ctx.strokeStyle='#3a5a3a';ctx.lineWidth=1;ctx.strokeRect(lx,H*0.6,18,H*0.25);
+      ctx.fillStyle='#d4a017';ctx.beginPath();ctx.arc(lx+15,H*0.725,2,0,Math.PI*2);ctx.fill();
+    }
+
+  } else if(s.bgType==='warehouse'){
+    // 夜空
+    var nsk=ctx.createLinearGradient(0,0,0,H*0.58);
+    nsk.addColorStop(0,'#0d1b2a');nsk.addColorStop(1,'#1a2a3a');
+    ctx.fillStyle=nsk;ctx.fillRect(0,0,W,H*0.58);
+    // 星（ほぼ固定）
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    for(var si=0;si<40;si++){
+      var sx=((si*137)-(ox*0.02)+W)%W;
+      var sy=8+((si*97)%55);
+      ctx.beginPath();ctx.arc(sx,sy,0.7,0,Math.PI*2);ctx.fill();
+    }
+    // 倉庫シルエット（遠景 0.15倍）
+    for(var wi2=0;wi2<6;wi2++){
+      var wbx=wi2*260-(ox*0.15);
+      wbx=((wbx%1560)+1560)%1560;
+      var wbh=H*0.18+(wi2%3)*28;
+      ctx.fillStyle='#0f1318';
+      ctx.fillRect(wbx,H*0.42-wbh,220,wbh+H*0.2);
+      // 波板ライン
+      ctx.strokeStyle='rgba(255,255,255,0.03)';ctx.lineWidth=1;
+      for(var wl=0;wl<220;wl+=10){
+        ctx.beginPath();ctx.moveTo(wbx+wl,H*0.42-wbh);ctx.lineTo(wbx+wl,H*0.62);ctx.stroke();
+      }
+    }
+    // 赤警告灯（点滅）
+    var rpt=Date.now()*0.002;
+    for(var ri=0;ri<4;ri++){
+      var rlx=ri*240+60-(ox*0.1);
+      rlx=((rlx%960)+960)%960;
+      ctx.fillStyle='rgba(192,57,43,'+(0.3+0.22*Math.sin(rpt+ri*1.5))+')';
+      ctx.shadowColor='#c0392b';ctx.shadowBlur=14;
+      ctx.beginPath();ctx.arc(rlx,H*0.36,7,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+    // 地面
+    var cgg=ctx.createLinearGradient(0,H*0.6,0,H);
+    cgg.addColorStop(0,'#1a1814');cgg.addColorStop(1,'#0d0c0a');
+    ctx.fillStyle=cgg;ctx.fillRect(0,H*0.6,W,H*0.4);
+    // 亀裂
+    ctx.strokeStyle='rgba(0,0,0,0.35)';ctx.lineWidth=1;
+    var coff=ox%120;
+    for(var crx=-coff;crx<W+120;crx+=120){
+      ctx.beginPath();ctx.moveTo(crx,H*0.6);ctx.lineTo(crx+25,H);ctx.stroke();
+    }
+    // ドラム缶（地上 1.0倍）
+    for(var dr=0;dr<10;dr++){
+      var drx=dr*280+60-(ox%2800);
+      if(drx<-40) drx+=2800;
+      if(drx>W+40) continue;
+      ctx.fillStyle='#2a3540';
+      ctx.beginPath();ctx.roundRect(drx,H*0.72,34,30,4);ctx.fill();
+      ctx.strokeStyle='#445566';ctx.lineWidth=1.5;ctx.stroke();
+      // ストライプ
+      ctx.strokeStyle='#c0392b';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(drx+6,H*0.72);ctx.lineTo(drx+6,H*0.72+30);ctx.stroke();
+    }
+
+  } else if(s.bgType==='ruins'||s.bgType==='survival'){ // ruins（廃校舎）
+    // 不気味な夜
+    var rsk=ctx.createLinearGradient(0,0,0,H*0.58);
+    rsk.addColorStop(0,'#060306');rsk.addColorStop(1,'#100808');
+    ctx.fillStyle=rsk;ctx.fillRect(0,0,W,H*0.58);
+    // 月
+    ctx.shadowColor='rgba(255,240,200,0.3)';ctx.shadowBlur=30;
+    ctx.fillStyle='rgba(255,240,200,0.18)';
+    ctx.beginPath();ctx.arc(W*0.78,H*0.13,32,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,240,200,0.07)';
+    ctx.beginPath();ctx.arc(W*0.78,H*0.13,56,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    // 廃墟シルエット（遠景 0.18倍）
+    for(var rbi=0;rbi<7;rbi++){
+      var rbx=rbi*220-(ox*0.18);
+      rbx=((rbx%1540)+1540)%1540;
+      var rbh=H*0.22+(rbi%4)*20;
+      ctx.fillStyle='#0a0806';
+      ctx.beginPath();
+      ctx.moveTo(rbx,H*0.62);
+      ctx.lineTo(rbx,H*0.62-rbh);
+      ctx.lineTo(rbx+25,H*0.62-rbh-18);
+      ctx.lineTo(rbx+55,H*0.62-rbh+8);
+      ctx.lineTo(rbx+95,H*0.62-rbh-6);
+      ctx.lineTo(rbx+135,H*0.62-rbh+12);
+      ctx.lineTo(rbx+170,H*0.62-rbh-4);
+      ctx.lineTo(rbx+200,H*0.62-rbh);
+      ctx.lineTo(rbx+200,H*0.62);
+      ctx.fill();
+      // 割れた窓の金光
+      ctx.fillStyle='rgba(212,160,23,0.12)';
+      ctx.fillRect(rbx+18,H*0.62-rbh*0.65,18,26);
+      ctx.fillRect(rbx+58,H*0.62-rbh*0.42,16,22);
+    }
+    // 炎・残り火（浮遊）
+    var et=Date.now()*0.001;
+    for(var em=0;em<12;em++){
+      var emx=((em*130+Math.sin(et+em*2.1)*14)-(ox*0.3));
+      emx=((emx%1560)+1560)%1560;
+      var emy=H*0.38+Math.sin(et*1.2+em)*22;
+      var eal=0.35+0.28*Math.sin(et+em);
+      ctx.fillStyle='rgba(212,160,23,'+eal+')';
+      ctx.beginPath();ctx.arc(emx,emy,1.8,0,Math.PI*2);ctx.fill();
+    }
+    // 地面
+    var rg=ctx.createLinearGradient(0,H*0.6,0,H);
+    rg.addColorStop(0,'#100808');rg.addColorStop(1,'#060404');
+    ctx.fillStyle=rg;ctx.fillRect(0,H*0.6,W,H*0.4);
+    // 瓦礫
+    for(var rb=0;rb<14;rb++){
+      var rbrx=rb*180+40-(ox%2520);
+      if(rbrx<-20) rbrx+=2520;
+      if(rbrx>W+20) continue;
+      ctx.fillStyle='#1a1208';
+      ctx.beginPath();
+      ctx.moveTo(rbrx,H*0.62);ctx.lineTo(rbrx+20,H*0.62);
+      ctx.lineTo(rbrx+14,H*0.62-12);ctx.lineTo(rbrx+5,H*0.62-9);
+      ctx.fill();
+    }
+    // 床の金ライン
+    ctx.strokeStyle='rgba(212,160,23,0.12)';ctx.lineWidth=2;
+    var gloff=ox%100;
+    for(var fl=-gloff;fl<W+100;fl+=100){
+      ctx.beginPath();ctx.moveTo(fl,H*0.6);ctx.lineTo(fl,H);ctx.stroke();
+    }
+
+  } else if(s.bgType==='neon'){
+    // ── 夜の歓楽街 ──
+    var nk=ctx.createLinearGradient(0,0,0,H*0.6);
+    nk.addColorStop(0,'#050010');nk.addColorStop(1,'#1a0528');
+    ctx.fillStyle=nk;ctx.fillRect(0,0,W,H*0.6);
+    // ネオンビル群（遠景）
+    var neonCols=['#ff00aa','#00ffee','#ffaa00','#aa00ff','#00ff88'];
+    for(var nb=0;nb<10;nb++){
+      var nbx=((nb*220)-(ox*0.18))%(10*220);
+      if(nbx<-220) nbx+=10*220;
+      var nbh=H*(0.22+((nb*37)%10)*0.025);
+      ctx.fillStyle='#1a0a28';ctx.fillRect(nbx,H*0.6-nbh,160,nbh);
+      // ネオン看板
+      var nc=neonCols[nb%neonCols.length];
+      ctx.shadowColor=nc;ctx.shadowBlur=12;
+      ctx.strokeStyle=nc;ctx.lineWidth=2;
+      ctx.strokeRect(nbx+10,H*0.6-nbh+10,140,20);
+      ctx.fillStyle=nc;ctx.font='bold 9px monospace';ctx.textAlign='center';
+      ctx.fillText(['キャバレー幻','スナック夢','パチンコ鬼','居酒屋龍','ゲーセン鉄'][nb%5],nbx+80,H*0.6-nbh+24);
+      ctx.shadowBlur=0;
+      // 窓（光る）
+      for(var nw=0;nw<4;nw++){
+        ctx.fillStyle='rgba(255,220,100,0.4)';
+        ctx.fillRect(nbx+12+nw*34,H*0.6-nbh+40,24,18);
+      }
+    }
+    // 地面（アスファルト）
+    var ng=ctx.createLinearGradient(0,H*0.6,0,H);
+    ng.addColorStop(0,'#1a0a1a');ng.addColorStop(1,'#0d0508');
+    ctx.fillStyle=ng;ctx.fillRect(0,H*0.6,W,H*0.4);
+    // 水たまり反射
+    var nt=Date.now()*0.001;
+    for(var np=0;np<6;np++){
+      var npx=((np*300+40)-(ox%1800));
+      if(npx<-60) npx+=1800;
+      if(npx>W+60) continue;
+      ctx.globalAlpha=0.18+Math.sin(nt+np)*0.07;
+      ctx.fillStyle=neonCols[np%neonCols.length];
+      ctx.beginPath();ctx.ellipse(npx,H*0.64,38,6,0,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+    }
+    // 街灯
+    for(var nl=0;nl<7;nl++){
+      var nlx=((nl*240+20)-(ox%1680));
+      if(nlx<-10) nlx+=1680;
+      if(nlx>W+10) continue;
+      ctx.strokeStyle='#aaa';ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(nlx,H*0.62);ctx.lineTo(nlx,H*0.38);ctx.lineTo(nlx+18,H*0.36);ctx.stroke();
+      ctx.fillStyle='rgba(255,240,180,0.7)';ctx.shadowColor='#ffee88';ctx.shadowBlur=16;
+      ctx.beginPath();ctx.arc(nlx+18,H*0.36,5,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+
+  } else if(s.bgType==='harbor'){
+    // ── 暗黒の埠頭 ──
+    var hk=ctx.createLinearGradient(0,0,0,H*0.6);
+    hk.addColorStop(0,'#020810');hk.addColorStop(1,'#061420');
+    ctx.fillStyle=hk;ctx.fillRect(0,0,W,H*0.6);
+    // 星・月
+    ctx.fillStyle='rgba(180,200,255,0.6)';
+    for(var hs=0;hs<50;hs++){
+      var hsx=((hs*173)-(ox*0.01)+W*2)%(W*2)%W;
+      var hsy=4+((hs*97)%50);
+      ctx.beginPath();ctx.arc(hsx,hsy,0.6,0,Math.PI*2);ctx.fill();
+    }
+    // 月
+    ctx.fillStyle='rgba(220,230,255,0.85)';ctx.shadowColor='#aabbff';ctx.shadowBlur=18;
+    ctx.beginPath();ctx.arc(W*0.8-(ox*0.005)%W,H*0.12,20,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    // クレーン（遠景）
+    ctx.strokeStyle='#1a2a3a';ctx.lineWidth=5;
+    for(var hc=0;hc<4;hc++){
+      var hcx=((hc*350+60)-(ox*0.12))%(4*350);
+      if(hcx<-60) hcx+=4*350;
+      ctx.beginPath();ctx.moveTo(hcx,H*0.6);ctx.lineTo(hcx,H*0.1);ctx.lineTo(hcx+80,H*0.1);ctx.stroke();
+      ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(hcx+80,H*0.1);ctx.lineTo(hcx+80,H*0.3);ctx.stroke();
+      ctx.lineWidth=5;
+    }
+    // 海（反射）
+    var hwg=ctx.createLinearGradient(0,H*0.55,0,H*0.6);
+    hwg.addColorStop(0,'#061420');hwg.addColorStop(1,'#0a1e30');
+    ctx.fillStyle=hwg;ctx.fillRect(0,H*0.55,W,H*0.06);
+    ctx.strokeStyle='rgba(0,140,200,0.15)';ctx.lineWidth=1;
+    var hwt=Date.now()*0.0008;
+    for(var hw=0;hw<8;hw++){
+      var hwy=H*0.56+hw*5+Math.sin(hwt+hw)*2;
+      ctx.beginPath();ctx.moveTo(0,hwy);ctx.lineTo(W,hwy);ctx.stroke();
+    }
+    // 地面（埠頭コンクリ）
+    var hg=ctx.createLinearGradient(0,H*0.6,0,H);
+    hg.addColorStop(0,'#0a1018');hg.addColorStop(1,'#050a0e');
+    ctx.fillStyle=hg;ctx.fillRect(0,H*0.6,W,H*0.4);
+    // コンテナ
+    var contCols=['#8b2a2a','#2a4a8b','#2a8b4a','#8b6a2a'];
+    for(var hco=0;hco<8;hco++){
+      var hcox=((hco*260+30)-(ox%2080));
+      if(hcox<-80) hcox+=2080;
+      if(hcox>W+80) continue;
+      var cc=contCols[hco%contCols.length];
+      ctx.fillStyle=cc;ctx.fillRect(hcox,H*0.6-50,80,50);
+      ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.lineWidth=2;
+      for(var hcl=0;hcl<4;hcl++) ctx.strokeRect(hcox+hcl*20,H*0.6-50,20,50);
+    }
+    // 港の街灯（青白い）
+    for(var hll=0;hll<6;hll++){
+      var hllx=((hll*280+50)-(ox%1680));
+      if(hllx<-10) hllx+=1680;
+      if(hllx>W+10) continue;
+      ctx.strokeStyle='#556';ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(hllx,H*0.62);ctx.lineTo(hllx,H*0.35);ctx.stroke();
+      ctx.fillStyle='rgba(180,200,255,0.8)';ctx.shadowColor='#8888ff';ctx.shadowBlur=14;
+      ctx.beginPath();ctx.arc(hllx,H*0.35,4,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+
+  } else if(s.bgType==='festival'){
+    // ── 血染め縁日 ──
+    var fk=ctx.createLinearGradient(0,0,0,H*0.6);
+    fk.addColorStop(0,'#1a0500');fk.addColorStop(1,'#2a0a00');
+    ctx.fillStyle=fk;ctx.fillRect(0,0,W,H*0.6);
+    // 星
+    ctx.fillStyle='rgba(255,180,100,0.4)';
+    for(var fs2=0;fs2<35;fs2++){
+      var fsx=((fs2*193)-(ox*0.01)+W*2)%(W*2)%W;
+      var fsy=5+((fs2*83)%45);
+      ctx.beginPath();ctx.arc(fsx,fsy,0.7,0,Math.PI*2);ctx.fill();
+    }
+    // 屋台・店（遠景）
+    var ft=Date.now()*0.001;
+    for(var fb=0;fb<8;fb++){
+      var fbx=((fb*240+20)-(ox*0.2))%(8*240);
+      if(fbx<-240) fbx+=8*240;
+      ctx.fillStyle='#3a1a08';ctx.fillRect(fbx,H*0.38,180,H*0.24);
+      // のれん
+      ctx.fillStyle=['#c0392b','#d4a017','#2c3e50','#8b0000'][fb%4];
+      for(var fn=0;fn<6;fn++){
+        var fnx=fbx+fn*28+4;
+        var fny=H*0.38+Math.sin(ft*1.5+fn+fb)*4;
+        ctx.fillRect(fnx,fny,20,30);
+      }
+      // 提灯
+      ctx.fillStyle='rgba(255,80,0,0.8)';ctx.shadowColor='#ff4400';ctx.shadowBlur=10;
+      ctx.beginPath();ctx.ellipse(fbx+40,H*0.34+Math.sin(ft+fb)*3,10,14,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(fbx+100,H*0.33+Math.sin(ft*1.2+fb)*3,10,14,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(fbx+160,H*0.34+Math.sin(ft*0.8+fb)*3,10,14,0,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+    // 燃え上がる神輿（中景）
+    var mky=H*0.42+Math.sin(ft*0.8)*6;
+    var mkx=W*0.5-(ox*0.5%W);
+    ctx.fillStyle='#8b2a00';ctx.fillRect(mkx-60,mky,120,60);
+    ctx.fillStyle='#d4a017';ctx.fillRect(mkx-50,mky-20,100,24);
+    for(var mf=0;mf<8;mf++){
+      var mfx=mkx-50+mf*14+Math.sin(ft*3+mf)*3;
+      var mfh=14+Math.sin(ft*2.5+mf*0.7)*8;
+      ctx.fillStyle='rgba(255,'+(80+mf*20)+',0,0.7)';
+      ctx.beginPath();ctx.moveTo(mfx,mky-20);ctx.lineTo(mfx+7,mky-20-mfh);ctx.lineTo(mfx+14,mky-20);ctx.fill();
+    }
+    // 地面（土道）
+    var fg=ctx.createLinearGradient(0,H*0.6,0,H);
+    fg.addColorStop(0,'#2a1008');fg.addColorStop(1,'#150804');
+    ctx.fillStyle=fg;ctx.fillRect(0,H*0.6,W,H*0.4);
+    // 縁日の紙くず
+    for(var fp=0;fp<12;fp++){
+      var fpx=((fp*170+30)-(ox%2040));
+      if(fpx<-10) fpx+=2040;
+      if(fpx>W+10) continue;
+      ctx.fillStyle=['#c0392b','#d4a017','#fff'][fp%3];
+      ctx.globalAlpha=0.35;
+      ctx.fillRect(fpx,H*0.62,8,4);
+      ctx.globalAlpha=1;
+    }
+    // 提灯の連なり（前景）
+    ctx.strokeStyle='rgba(100,60,20,0.6)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,H*0.28);ctx.lineTo(W,H*0.28+Math.sin(ft)*6);ctx.stroke();
+    for(var fll=0;fll<14;fll++){
+      var fllx=((fll*80)-(ox*0.6))%1120;
+      if(fllx<-20) fllx+=1120;
+      ctx.fillStyle='rgba(255,60,0,0.75)';ctx.shadowColor='#ff3300';ctx.shadowBlur=8;
+      ctx.beginPath();ctx.ellipse(fllx,H*0.28+Math.sin(ft+fll)*4,7,10,0,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+  } else if(s.bgType==='parking'){
+    // ── 地下駐車場 ──
+    ctx.fillStyle='#080808';ctx.fillRect(0,0,W,H);
+    var plt=Date.now()*0.003;
+    for(var pl=0;pl<8;pl++){
+      var plx=((pl*120+20)-(ox*0.05))%(8*120);
+      if(plx<-20) plx+=8*120;
+      var pflicker=pl%3===1?0.4+Math.sin(plt*7+pl)*0.4:0.85;
+      ctx.fillStyle='rgba(180,255,200,'+pflicker+')';ctx.fillRect(plx,H*0.12,60,6);
+      ctx.fillStyle='rgba(180,255,200,'+(pflicker*0.12)+')';ctx.fillRect(plx-10,H*0.12,80,H*0.52);
+    }
+    for(var pp=0;pp<6;pp++){
+      var ppx=((pp*200+20)-(ox*0.9))%(6*200);
+      if(ppx<-30) ppx+=6*200;if(ppx>W+30) continue;
+      ctx.fillStyle='#141414';ctx.fillRect(ppx,H*0.1,28,H*0.52);
+    }
+    for(var pc=0;pc<5;pc++){
+      var pcx=((pc*280+60)-(ox%1400));
+      if(pcx<-90) pcx+=1400;if(pcx>W+90) continue;
+      ctx.fillStyle='#1a1a1a';ctx.fillRect(pcx,H*0.52,90,36);
+      ctx.fillStyle='#0a0a0a';ctx.fillRect(pcx+10,H*0.46,70,22);
+      ctx.fillStyle='rgba(180,220,255,0.1)';ctx.fillRect(pcx+14,H*0.48,28,14);ctx.fillRect(pcx+50,H*0.48,22,14);
+      ctx.fillStyle='#111';ctx.beginPath();ctx.arc(pcx+16,H*0.88,10,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(pcx+74,H*0.88,10,0,Math.PI*2);ctx.fill();
+    }
+    ctx.fillStyle='#0e0e0e';ctx.fillRect(0,H*0.62,W,H*0.38);
+    ctx.strokeStyle='rgba(255,255,0,0.2)';ctx.lineWidth=3;
+    var pyoff=ox%200;
+    for(var py=-pyoff;py<W+200;py+=200){ctx.beginPath();ctx.moveTo(py,H*0.62);ctx.lineTo(py,H);ctx.stroke();}
+
+  } else if(s.bgType==='rooftop'){
+    // ── 摩天楼の屋上 ──
+    var rrt=Date.now()*0.001;
+    var rsk2=ctx.createLinearGradient(0,0,0,H*0.6);
+    rsk2.addColorStop(0,'#020510');rsk2.addColorStop(1,'#060c1e');
+    ctx.fillStyle=rsk2;ctx.fillRect(0,0,W,H*0.6);
+    ctx.strokeStyle='rgba(150,180,255,0.15)';ctx.lineWidth=1;
+    for(var rr=0;rr<60;rr++){
+      var rrx=((rr*173+Date.now()*0.3)%W);
+      var rry=((rr*97+Date.now()*0.8)%H);
+      ctx.beginPath();ctx.moveTo(rrx,rry);ctx.lineTo(rrx+2,rry+12);ctx.stroke();
+    }
+    for(var rb2=0;rb2<12;rb2++){
+      var rb2x=((rb2*160)-(ox*0.12))%(12*160);
+      if(rb2x<-160) rb2x+=12*160;
+      var rb2h=H*(0.3+(rb2%5)*0.06);
+      ctx.fillStyle='#080c18';ctx.fillRect(rb2x,H*0.6-rb2h,130,rb2h);
+      for(var rw2=0;rw2<4;rw2++) for(var rc2=0;rc2<3;rc2++){
+        if((rb2*7+rw2*3+rc2)%4!==0) continue;
+        ctx.fillStyle='rgba(255,230,160,0.3)';ctx.fillRect(rb2x+8+rc2*38,H*0.6-rb2h+12+rw2*30,28,20);
+      }
+    }
+    var hx=((rrt*30)-(ox*0.08))%W; if(hx<-60) hx+=W;
+    ctx.fillStyle='#222';ctx.fillRect(hx,H*0.08,40,10);
+    ctx.fillStyle='rgba(255,50,50,0.9)';ctx.beginPath();ctx.arc(hx+40,H*0.085,3,0,Math.PI*2);ctx.fill();
+    var rg2=ctx.createLinearGradient(0,H*0.6,0,H);
+    rg2.addColorStop(0,'#0e1220');rg2.addColorStop(1,'#080c18');
+    ctx.fillStyle=rg2;ctx.fillRect(0,H*0.6,W,H*0.4);
+    ctx.strokeStyle='rgba(100,120,160,0.4)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(0,H*0.63);ctx.lineTo(W,H*0.63);ctx.stroke();
+    for(var rf=0;rf<24;rf++){
+      var rfx=rf*(W/24);ctx.beginPath();ctx.moveTo(rfx,H*0.63);ctx.lineTo(rfx,H*0.57);ctx.stroke();
+    }
+    for(var rp2=0;rp2<5;rp2++){
+      var rp2x=((rp2*220+60)-(ox%1100));
+      if(rp2x<-40) rp2x+=1100;if(rp2x>W+40) continue;
+      ctx.globalAlpha=0.15+Math.sin(rrt*2+rp2)*0.05;
+      ctx.fillStyle='#4466aa';ctx.beginPath();ctx.ellipse(rp2x,H*0.65,32,7,0,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+    }
+
+  } else if(s.bgType==='arena'){
+    // ── 神鬼の闘技場 ──
+    var art=Date.now()*0.001;
+    ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+    var ask=ctx.createRadialGradient(W/2,0,0,W/2,0,H*0.8);
+    ask.addColorStop(0,'#1a0000');ask.addColorStop(0.6,'#0a0000');ask.addColorStop(1,'#000');
+    ctx.fillStyle=ask;ctx.fillRect(0,0,W,H*0.6);
+    for(var af=0;af<6;af++){
+      var afx=af<3?af*44:W-(5-af)*44;
+      for(var afp=0;afp<8;afp++){
+        var afy=H*0.58-afp*18+Math.sin(art+afp*0.5)*8;
+        var afa=0.6-afp*0.07;
+        ctx.fillStyle='rgba(255,'+(30+afp*10)+',0,'+Math.max(0,afa)+')';
+        ctx.beginPath();ctx.arc(afx+Math.sin(art*1.5+afp)*6,afy,8+afp*1.5,0,Math.PI*2);ctx.fill();
+      }
+    }
+    for(var aw=0;aw<6;aw++){
+      var awx=((aw*220)-(ox*0.15))%(6*220);
+      if(awx<-60) awx+=6*220;
+      ctx.fillStyle='#0d0000';ctx.fillRect(awx,H*0.1,50,H*0.52);
+      ctx.fillStyle='rgba(255,80,0,'+(0.6+Math.sin(art*3+aw)*0.3)+')';
+      ctx.shadowColor='#ff4400';ctx.shadowBlur=14;
+      ctx.beginPath();ctx.arc(awx+25,H*0.14,6,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+    var ag=ctx.createLinearGradient(0,H*0.6,0,H);
+    ag.addColorStop(0,'#1a0000');ag.addColorStop(1,'#0a0000');
+    ctx.fillStyle=ag;ctx.fillRect(0,H*0.6,W,H*0.4);
+    ctx.strokeStyle='rgba(80,0,0,0.5)';ctx.lineWidth=1;
+    var aoff=ox%80;
+    for(var ax2=-aoff;ax2<W+80;ax2+=80){ctx.beginPath();ctx.moveTo(ax2,H*0.6);ctx.lineTo(ax2,H);ctx.stroke();}
+    for(var ay2=H*0.6;ay2<H;ay2+=40){ctx.beginPath();ctx.moveTo(0,ay2);ctx.lineTo(W,ay2);ctx.stroke();}
+    // 神鬼の五芒星紋章
+    ctx.save();ctx.translate(W/2-(ox*0.3)%W,H*0.35);
+    ctx.globalAlpha=0.07+Math.sin(art*0.5)*0.03;
+    ctx.strokeStyle='#ff0000';ctx.lineWidth=2;
+    ctx.beginPath();
+    for(var ak=0;ak<5;ak++){
+      var ang1=ak*Math.PI*2/5-Math.PI/2;
+      var ang2=((ak+2)%5)*Math.PI*2/5-Math.PI/2;
+      ctx.moveTo(Math.cos(ang1)*50,Math.sin(ang1)*50);
+      ctx.lineTo(Math.cos(ang2)*50,Math.sin(ang2)*50);
+    }
+    ctx.stroke();ctx.globalAlpha=1;ctx.restore();
+  } else {
+    // ── 新ステージ共通フォールバック描画 ──
+    var p=s.palette;
+    var fbsk=ctx.createLinearGradient(0,0,0,H*0.6);
+    fbsk.addColorStop(0,p.sky||'#080808');fbsk.addColorStop(1,p.wall||p.sky||'#050505');
+    ctx.fillStyle=fbsk;ctx.fillRect(0,0,W,H*0.6);
+
+    if(s.bgType==='midnightstrip'){
+      // 深夜の繁華街：紫ネオン看板
+      var mnT=Date.now()*0.001;
+      var mnCols=['#cc00ff','#ff00cc','#8800ff','#ff44cc'];
+      for(var mn=0;mn<10;mn++){
+        var mnx=((mn*140)-(ox*0.25))%(10*140);if(mnx<-140) mnx+=10*140;
+        ctx.fillStyle='#140820';ctx.fillRect(mnx,H*0.04,110,H*0.5);
+        ctx.fillStyle='#0e0615';ctx.fillRect(mnx+6,H*0.07,98,H*0.44);
+        var nc2=mnCols[mn%4];
+        ctx.shadowColor=nc2;ctx.shadowBlur=10+Math.sin(mnT*2+mn)*4;
+        ctx.strokeStyle=nc2;ctx.lineWidth=1.5;ctx.strokeRect(mnx+10,H*0.1,85,20);
+        ctx.fillStyle=nc2;ctx.font='bold 9px sans-serif';ctx.fillText('BAR CLUB',mnx+20,H*0.16);
+        ctx.shadowBlur=0;
+      }
+      ctx.fillStyle='rgba(80,0,120,0.2)';ctx.fillRect(0,0,W,H*0.6);
+
+    } else if(s.bgType==='factory'){
+      // 廃工場：煙突・鉄骨・毒煙
+      var fcT=Date.now()*0.0005;
+      ctx.fillStyle='rgba(180,100,0,0.06)';ctx.fillRect(0,0,W,H*0.6);
+      for(var fc=0;fc<6;fc++){
+        var fcx=((fc*180)-(ox*0.2))%(6*180);if(fcx<-80) fcx+=6*180;
+        ctx.fillStyle='#1a1208';ctx.fillRect(fcx,H*0.05,60,H*0.55);
+        ctx.fillStyle='#141006';ctx.fillRect(fcx+8,H*0.08,44,H*0.52);
+        // 煙
+        for(var sm=0;sm<4;sm++){
+          var smy=H*0.05-(sm*30)-(fcT*20+fc*10)%120;
+          var sma=0.3-sm*0.07;
+          ctx.fillStyle='rgba(255,140,0,'+Math.max(0,sma)+')';
+          ctx.beginPath();ctx.arc(fcx+30,smy,8+sm*4,0,Math.PI*2);ctx.fill();
+        }
+      }
+      // 横鉄骨
+      ctx.strokeStyle='rgba(80,70,50,0.5)';ctx.lineWidth=4;
+      for(var fb=0;fb<3;fb++){
+        var fby=H*(0.25+fb*0.1);
+        ctx.beginPath();ctx.moveTo(0,fby);ctx.lineTo(W,fby);ctx.stroke();
+      }
+
+    } else if(s.bgType==='river'){
+      // 豪雨の河川敷：雨・濁流
+      var rvT=Date.now()*0.001;
+      // 雨
+      ctx.strokeStyle='rgba(100,160,255,0.25)';ctx.lineWidth=1;
+      for(var rn=0;rn<50;rn++){
+        var rnx=(rn*23+rvT*200)%W;
+        var rny=(rn*37+rvT*300)%(H*0.6);
+        ctx.beginPath();ctx.moveTo(rnx,rny);ctx.lineTo(rnx+3,rny+12);ctx.stroke();
+      }
+      // 川
+      var rvg=ctx.createLinearGradient(0,H*0.45,0,H*0.58);
+      rvg.addColorStop(0,'#1a3060');rvg.addColorStop(1,'#0a1a3a');
+      ctx.fillStyle=rvg;ctx.fillRect(0,H*0.45,W,H*0.13);
+      ctx.strokeStyle='rgba(60,120,200,0.3)';ctx.lineWidth=1;
+      for(var rw=0;rw<5;rw++){
+        var rwoff=((rvT*80+rw*40))%W;
+        ctx.beginPath();ctx.moveTo(-rwoff,H*0.5+rw*5);ctx.lineTo(W-rwoff,H*0.5+rw*5);ctx.stroke();
+      }
+      // 護岸ブロック
+      for(var rb=0;rb<12;rb++){
+        var rbx=((rb*90)-(ox*0.3))%(12*90);if(rbx<-80) rbx+=12*90;
+        ctx.fillStyle='#1a2030';ctx.fillRect(rbx,H*0.42,70,20);
+      }
+
+    } else if(s.bgType==='yakuza'){
+      // 極道の本家：金屏風・黒塗り
+      var ykT=Date.now()*0.0008;
+      var ykg=ctx.createLinearGradient(0,0,0,H*0.6);
+      ykg.addColorStop(0,'#150a00');ykg.addColorStop(1,'#0a0600');
+      ctx.fillStyle=ykg;ctx.fillRect(0,0,W,H*0.6);
+      // 金屏風
+      ctx.fillStyle='rgba(212,160,23,0.07)';ctx.fillRect(0,0,W,H*0.6);
+      for(var yp=0;yp<10;yp++){
+        var ypx=((yp*100)-(ox*0.15))%(10*100);
+        ctx.strokeStyle='rgba(212,160,23,0.2)';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(ypx,0);ctx.lineTo(ypx,H*0.6);ctx.stroke();
+      }
+      // 家紋
+      ctx.save();ctx.translate(W/2-(ox*0.15)%W,H*0.28);
+      ctx.globalAlpha=0.06+Math.sin(ykT)*0.02;
+      ctx.strokeStyle='#d4a017';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,0,40,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.arc(0,0,30,0,Math.PI*2);ctx.stroke();
+      ctx.globalAlpha=1;ctx.restore();
+      // 黒塗り車
+      for(var yc=0;yc<3;yc++){
+        var ycx=((yc*280)-(ox*0.4))%(3*280);if(ycx<-140) ycx+=3*280;
+        ctx.fillStyle='#0a0808';ctx.fillRect(ycx,H*0.42,120,40);
+        ctx.fillStyle='#111';ctx.fillRect(ycx+10,H*0.38,90,20);
+        ctx.fillStyle='rgba(255,220,100,0.7)';ctx.beginPath();ctx.arc(ycx+110,H*0.47,5,0,Math.PI*2);ctx.fill();
+      }
+
+    } else if(s.bgType==='freezer'){
+      // 氷点下の倉庫：氷柱・白息
+      var fzT=Date.now()*0.001;
+      ctx.fillStyle='rgba(136,200,255,0.04)';ctx.fillRect(0,0,W,H*0.6);
+      // 倉庫壁
+      for(var fw=0;fw<8;fw++){
+        var fwx=((fw*150)-(ox*0.2))%(8*150);if(fwx<-100) fwx+=8*150;
+        ctx.fillStyle='#0c1420';ctx.fillRect(fwx,H*0.05,120,H*0.55);
+        ctx.strokeStyle='#0a1018';ctx.lineWidth=2;ctx.strokeRect(fwx,H*0.05,120,H*0.55);
+        // 氷柱
+        for(var fi=0;fi<4;fi++){
+          var fix=fwx+fi*28+10;
+          ctx.fillStyle='rgba(180,220,255,0.4)';
+          ctx.beginPath();ctx.moveTo(fix,H*0.05);ctx.lineTo(fix+6,H*0.05);ctx.lineTo(fix+3,H*0.05+20+fi*5);ctx.closePath();ctx.fill();
+        }
+      }
+      // 霜
+      ctx.strokeStyle='rgba(200,230,255,0.08)';ctx.lineWidth=1;
+      for(var fst=0;fst<20;fst++){
+        var fsx=(fst*47+ox*0.1)%W;
+        ctx.beginPath();ctx.moveTo(fsx,H*0.6);ctx.lineTo(fsx+10,H*0.55);ctx.lineTo(fsx+20,H*0.6);ctx.stroke();
+      }
+
+    } else if(s.bgType==='deadpark'){
+      // 廃遊園地：観覧車・不気味
+      var dpT=Date.now()*0.0005;
+      // 観覧車（固定気味）
+      var dwx=W*0.7-(ox*0.1)%W;
+      ctx.strokeStyle='rgba(255,51,136,0.3)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(dwx,H*0.25,70,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='rgba(255,51,136,0.15)';ctx.lineWidth=1;
+      for(var dp=0;dp<8;dp++){
+        var dpa=dp*Math.PI/4+dpT;
+        ctx.beginPath();ctx.moveTo(dwx,H*0.25);
+        ctx.lineTo(dwx+Math.cos(dpa)*70,H*0.25+Math.sin(dpa)*70);ctx.stroke();
+      }
+      // ゴンドラ
+      for(var dg=0;dg<8;dg++){
+        var dga=dg*Math.PI/4+dpT;
+        var dgx=dwx+Math.cos(dga)*70,dgy=H*0.25+Math.sin(dga)*70;
+        ctx.fillStyle='#1a0a18';ctx.fillRect(dgx-5,dgy-8,10,10);
+      }
+      // テント（手前）
+      for(var dt=0;dt<4;dt++){
+        var dtx=((dt*200)-(ox*0.5))%(4*200);if(dtx<-100) dtx+=4*200;
+        ctx.fillStyle='#1a0818';ctx.fillRect(dtx,H*0.38,80,H*0.22);
+        ctx.fillStyle='rgba(255,51,136,0.5)';
+        ctx.beginPath();ctx.moveTo(dtx,H*0.38);ctx.lineTo(dtx+40,H*0.28);ctx.lineTo(dtx+80,H*0.38);ctx.fill();
+      }
+
+    } else if(s.bgType==='train'){
+      // 貨物列車：走行中車両・電柱
+      var tnT=Date.now()*0.002;
+      // 空（速い）
+      ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,0,W,H*0.6);
+      // 電柱
+      for(var tp=0;tp<8;tp++){
+        var tpx=(tp*120-(ox*0.8+tnT*80))%((8*120));if(tpx<-20) tpx+=8*120;
+        ctx.strokeStyle='#222';ctx.lineWidth=4;
+        ctx.beginPath();ctx.moveTo(tpx,H*0.1);ctx.lineTo(tpx,H*0.58);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(tpx-15,H*0.14);ctx.lineTo(tpx+15,H*0.14);ctx.stroke();
+        ctx.strokeStyle='rgba(80,80,80,0.2)';ctx.lineWidth=1;
+        if(tp<7){ctx.beginPath();ctx.moveTo(tpx,H*0.15);ctx.lineTo(tpx+120,H*0.18);ctx.stroke();}
+      }
+      // 車両屋根（走行感）
+      for(var tv=0;tv<3;tv++){
+        var tvx=(tv*380-(ox*1.2))%(3*380);if(tvx<-200) tvx+=3*380;
+        ctx.fillStyle='#181818';ctx.fillRect(tvx,H*0.52,360,H*0.08);
+        ctx.strokeStyle='#282828';ctx.lineWidth=2;ctx.strokeRect(tvx,H*0.52,360,H*0.08);
+        ctx.fillStyle='#0a0a0a';ctx.fillRect(tvx+2,H*0.53,356,H*0.06);
+      }
+
+    } else if(s.bgType==='ugarena'){
+      // 地下闘技場：スポットライト・観客
+      var ugT=Date.now()*0.001;
+      ctx.fillStyle='#060408';ctx.fillRect(0,0,W,H*0.6);
+      // 観客シルエット
+      for(var ug=0;ug<20;ug++){
+        var ugx=(ug*50+ox*0.05)%W;
+        var ugh=H*(0.1+Math.sin(ug*1.7+ugT)*0.03);
+        ctx.fillStyle='rgba(20,10,8,0.8)';
+        ctx.beginPath();ctx.ellipse(ugx,ugh,8,12,0,0,Math.PI*2);ctx.fill();
+      }
+      // スポットライト
+      var slx=W/2+(Math.sin(ugT*0.5)*100);
+      var slg=ctx.createRadialGradient(slx,0,0,slx,0,H*0.7);
+      slg.addColorStop(0,'rgba(255,102,0,0.12)');slg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=slg;ctx.fillRect(0,0,W,H*0.6);
+      // 境界ロープ
+      ctx.strokeStyle='rgba(200,150,0,0.5)';ctx.lineWidth=3;
+      var rpoff=((ugT*30))%80;
+      ctx.setLineDash([20,10]);ctx.beginPath();ctx.moveTo(0,H*0.57);ctx.lineTo(W,H*0.57);ctx.stroke();
+      ctx.setLineDash([]);
+
+    } else if(s.bgType==='collapse'){
+      // 崩壊ビル：瓦礫・火花
+      var clT=Date.now()*0.001;
+      // ビル残骸
+      for(var cl=0;cl<6;cl++){
+        var clx=((cl*180)-(ox*0.3))%(6*180);if(clx<-80) clx+=6*180;
+        var clh=H*(0.06+Math.sin(cl*2)*0.08);
+        ctx.fillStyle='#181208';ctx.fillRect(clx,clh,80,H*0.56-clh);
+        ctx.fillStyle='#101008';ctx.fillRect(clx+6,clh+10,68,H*0.5-clh);
+        // 窓の炎
+        for(var cw=0;cw<3;cw++){
+          var cwa=0.4+Math.sin(clT*4+cl+cw)*0.3;
+          ctx.fillStyle='rgba(255,'+(80+cw*40)+',0,'+cwa+')';
+          ctx.fillRect(clx+10+cw*22,H*0.2+cw*30,16,14);
+        }
+      }
+      // 煙・火花
+      ctx.fillStyle='rgba(30,20,10,0.15)';ctx.fillRect(0,0,W,H*0.3);
+      for(var csp=0;csp<8;csp++){
+        var csx=(csp*80+clT*60)%W,csy=H*0.55-(clT*40+csp*30)%(H*0.5);
+        ctx.fillStyle='rgba(255,'+(100+csp*20)+',0,0.7)';
+        ctx.beginPath();ctx.arc(csx,csy,2,0,Math.PI*2);ctx.fill();
+      }
+
+    } else if(s.bgType==='skytemple'){
+      // 天空の神殿：雲・柱・神秘
+      var stT=Date.now()*0.0008;
+      // 天空グラデ
+      var stg=ctx.createLinearGradient(0,0,0,H*0.6);
+      stg.addColorStop(0,'#100828');stg.addColorStop(0.5,'#1a1040');stg.addColorStop(1,'#0c0820');
+      ctx.fillStyle=stg;ctx.fillRect(0,0,W,H*0.6);
+      // 星
+      for(var ss=0;ss<30;ss++){
+        var ssx=(ss*71+ox*0.05)%W,ssy=(ss*37)%(H*0.5);
+        var ssa=0.4+Math.sin(stT*2+ss)*0.3;
+        ctx.fillStyle='rgba(170,136,255,'+ssa+')';
+        ctx.beginPath();ctx.arc(ssx,ssy,1.2,0,Math.PI*2);ctx.fill();
+      }
+      // 雲
+      for(var sc=0;sc<5;sc++){
+        var scx=((sc*180)-(ox*0.12+stT*20))%(5*180);if(scx<-100) scx+=5*180;
+        var sca=0.15+Math.sin(stT+sc)*0.05;
+        ctx.fillStyle='rgba(170,136,255,'+sca+')';
+        ctx.beginPath();ctx.ellipse(scx,H*(0.15+sc%3*0.06),50,18,0,0,Math.PI*2);ctx.fill();
+      }
+      // 柱
+      for(var spl=0;spl<8;spl++){
+        var splx=((spl*120)-(ox*0.4))%(8*120);if(splx<-30) splx+=8*120;
+        var splg=ctx.createLinearGradient(splx,0,splx+20,0);
+        splg.addColorStop(0,'#2a1a50');splg.addColorStop(0.5,'#3a2860');splg.addColorStop(1,'#1a1040');
+        ctx.fillStyle=splg;ctx.fillRect(splx,H*0.2,22,H*0.4);
+        ctx.fillStyle='rgba(170,136,255,0.15)';ctx.fillRect(splx,H*0.18,26,8);ctx.fillRect(splx,H*0.56,26,6);
+      }
+      // オーラ
+      var stog=ctx.createRadialGradient(W/2-(ox*0.2)%W,H*0.3,0,W/2-(ox*0.2)%W,H*0.3,H*0.35);
+      stog.addColorStop(0,'rgba(170,136,255,0.07)');stog.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=stog;ctx.fillRect(0,0,W,H*0.6);
+    }
+
+    // 共通：地面
+    var fbg=ctx.createLinearGradient(0,H*0.6,0,H);
+    fbg.addColorStop(0,p.ground||'#101010');fbg.addColorStop(1,p.wall||'#080808');
+    ctx.fillStyle=fbg;ctx.fillRect(0,H*0.6,W,H*0.4);
+    // グリッド線
+    ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;
+    var goff=ox%60;
+    for(var gx=-goff;gx<W+60;gx+=60){ctx.beginPath();ctx.moveTo(gx,H*0.6);ctx.lineTo(gx,H);ctx.stroke();}
+    for(var gy=H*0.6;gy<H;gy+=40){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+    // アクセントライン
+    ctx.strokeStyle=p.accent||'#d4a017';ctx.lineWidth=2;ctx.globalAlpha=0.5;
+    ctx.beginPath();ctx.moveTo(0,H*0.6);ctx.lineTo(W,H*0.6);ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+}
+
+// ── 回復アイテム ──
+var healItems=[];
+var HEAL_TYPES={
+  onigiri:{label:'おにぎり',col:'#fff',heal:30,icon:'🍙'},
+  bento:  {label:'弁当',    col:'#d4a017',heal:60,icon:'🍱'},
+  drink:  {label:'ドリンク',col:'#4af',  heal:20,icon:'🥤'},
+};
+
+function tryDropHeal(x,y){
+  if(Math.random()<0.15){
+    var types=Object.keys(HEAL_TYPES);
+    var groundY=(player&&player.gy)||y||400;
+    healItems.push({x:x,y:groundY,type:types[rnd(types.length)],pulse:0});
+  }
+}
+function tryDropHealBoss(x,y){
+  var groundY=(player&&player.gy)||y||400;
+  healItems.push({x:x,y:groundY,type:'bento',pulse:0});
+}
+
+function pickupHeal(f){
+  for(var i=healItems.length-1;i>=0;i--){
+    var it=healItems[i];
+    // X距離だけで判定（Y座標はground固定なので不要）
+    if(Math.abs(it.x-f.x)<60){
+      var ht=HEAL_TYPES[it.type];
+      f.hp=Math.min(f.maxHp,f.hp+ht.heal);
+      healItems.splice(i,1);
+      burst(f.x,f.y-30,'#2ecc71',14,false);
+      ann(ht.label+' +'+(ht.heal)+'HP','#2ecc71');
+      updateHUD();
+      return true;
+    }
+  }
+  return false;
+}
+
+function drawHealItems(){
+  var t=Date.now()*0.003;
+  healItems.forEach(function(it){
+    var wx=it.x-scrollX;
+    if(wx<-20||wx>W+20) return;
+    it.pulse+=0.08;
+    var ht=HEAL_TYPES[it.type];
+    var bob=Math.sin(it.pulse)*4;
+    // 光輪
+    ctx.save();ctx.translate(wx,it.y-8+bob);
+    ctx.shadowColor=ht.col;ctx.shadowBlur=12+Math.sin(it.pulse)*4;
+    ctx.strokeStyle=ht.col;ctx.globalAlpha=0.5+Math.sin(it.pulse)*0.2;
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(0,0,14,0,Math.PI*2);ctx.stroke();
+    ctx.globalAlpha=1;ctx.shadowBlur=0;
+    // 絵文字
+    ctx.font='18px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(ht.icon,0,0);
+    ctx.restore();
+  });
+}
+
+function drawWDrop(wd){
+  var wx=wd.x-scrollX;
+  if(wx<-20||wx>W+20) return;
+  var wc=WEAPONS[wd.type];
+  if(!wc) return;
+  ctx.save();ctx.translate(wx,wd.y-4);ctx.rotate(0.5);
+  ctx.strokeStyle=wc.col;ctx.fillStyle=wc.col;ctx.lineWidth=3;ctx.lineCap='round';
+  // glow
+  ctx.shadowColor=wc.col;ctx.shadowBlur=10;
+  if(wd.type==='bat'||wd.type==='bokken'){
+    ctx.lineWidth=wd.type==='bat'?6:5;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-22);ctx.stroke();
+    if(wd.type==='bat'){ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(0,-16);ctx.lineTo(0,-24);ctx.stroke();}
+  } else if(wd.type==='chain'){
+    ctx.lineWidth=3;
+    for(var i=0;i<4;i++){ctx.beginPath();ctx.arc(i*5,i*4,3,0,Math.PI*2);ctx.stroke();}
+  } else if(wd.type==='nunchaku'){
+    ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-12);ctx.stroke();
+    ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(6,-18);ctx.stroke();
+    ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(6,-18);ctx.lineTo(6,-28);ctx.stroke();
+  } else if(wd.type==='pipe'){
+    ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(3,-22);ctx.stroke();
+  } else if(wd.type==='cutter'){
+    ctx.fillRect(-3,0,6,-12);
+    ctx.fillStyle='#ddd';ctx.beginPath();ctx.moveTo(3,-8);ctx.lineTo(7,-12);ctx.lineTo(3,-12);ctx.fill();
+  } else if(wd.type==='shovel'){
+    ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(1,-18);ctx.stroke();
+    ctx.fillRect(-7,-18,14,-8);
+  } else {
+    ctx.fillRect(-3,0,6,-14);ctx.fillRect(-5,-14,10,-5);
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════
+//  WAVE SYSTEM
+// ═══════════════════════════════════════
+var waveIdx=0,waveActive=false,bossFight=false;
+var spawnQ=[],spawnT=0;
+var survivalPhase=0;
+var survivalInBossPhase=false; // 今ボス波中かどうか
+function getMaxOnScreen(){
+  var party=1+allies.filter(function(a){return a&&!a.dead;}).length;
+  return Math.min(6, Math.max(3, party*2));
+}
+
+var SURVIVAL_PHASE_ENEMIES=[
+  ['punk','punk','punk','punk'],
+  ['thug','punk','punk','thug'],
+  ['thug','thug','punk','thug'],
+  ['heavy','thug','thug','heavy'],
+  ['heavy','heavy','thug','heavy','thug'],
+];
+
+var WAVE_DEFS=[
+  // stage0: 学校（6波＋ボス）
+  [
+    ['punk','punk','punk','punk','punk'],
+    ['thug','punk','punk','thug','punk'],
+    ['thug','thug','punk','thug'],
+    ['punk','thug','punk','thug','punk'],
+    ['thug','thug','thug','punk'],
+    ['heavy','thug','punk','thug'],
+    ['boss_school','thug','thug']
+  ],
+  // stage1: 倉庫（6波＋ボス）
+  [
+    ['punk','thug','punk','punk','thug'],
+    ['thug','thug','punk','thug','punk'],
+    ['heavy','thug','punk','heavy'],
+    ['thug','punk','thug','punk','thug'],
+    ['heavy','thug','thug','punk'],
+    ['heavy','heavy','thug','thug'],
+    ['boss_queen','thug','heavy']
+  ],
+  // stage2: 廃校舎（6波＋ボス）
+  [
+    ['thug','punk','thug','punk'],
+    ['heavy','thug','thug'],
+    ['thug','heavy','thug','punk'],
+    ['heavy','heavy','thug'],
+    ['boss_minion','thug','heavy'],
+    ['boss_minion','heavy','heavy'],
+    ['boss_final','heavy','thug']
+  ],
+  [], // stage3: survival（WAVE_DEFSは不使用）
+  // stage4: 夜の歓楽街（6波＋ボス）
+  [
+    ['punk','punk','thug','punk','punk'],
+    ['thug','punk','thug','thug'],
+    ['heavy','thug','punk','heavy'],
+    ['thug','thug','heavy','thug'],
+    ['heavy','heavy','thug','thug'],
+    ['boss_minion','heavy','thug'],
+    ['boss_rika','thug','punk']
+  ],
+  // stage5: 暗黒の埠頭（6波＋ボス）
+  [
+    ['thug','punk','thug','thug'],
+    ['heavy','thug','thug'],
+    ['heavy','heavy','thug'],
+    ['boss_minion','thug','heavy'],
+    ['boss_minion','heavy','heavy'],
+    ['heavy','boss_minion','heavy'],
+    ['boss_excop','boss_twins','boss_twins2']
+  ],
+  // stage6: 血染め縁日（6波＋ボス）
+  [
+    ['punk','thug','punk','thug','punk'],
+    ['thug','heavy','thug','thug'],
+    ['heavy','heavy','thug','heavy'],
+    ['boss_minion','heavy','thug','heavy'],
+    ['boss_minion','boss_minion','heavy'],
+    ['heavy','boss_minion','boss_minion','heavy'],
+    ['boss_oyabun']
+  ],
+  // stage7: 地下駐車場（6波＋ボス）
+  [
+    ['heavy','thug','heavy','punk'],
+    ['boss_minion','thug','heavy'],
+    ['heavy','heavy','boss_minion'],
+    ['thug','heavy','boss_minion','thug'],
+    ['boss_minion','boss_minion','heavy','heavy'],
+    ['heavy','boss_minion','boss_minion','heavy'],
+    ['boss_ganzo','heavy','thug']
+  ],
+  // stage8: 摩天楼の屋上（6波＋ボス）
+  [
+    ['heavy','thug','heavy','thug'],
+    ['boss_minion','heavy','heavy'],
+    ['heavy','boss_minion','heavy'],
+    ['boss_minion','boss_minion','heavy'],
+    ['heavy','heavy','boss_minion','boss_minion'],
+    ['boss_minion','heavy','boss_minion','heavy'],
+    ['boss_mitsuki','thug','thug']
+  ],
+  // stage9: 深夜の繁華街（6波＋ボス）
+  [
+    ['punk','thug','punk','punk','thug'],
+    ['thug','punk','thug','thug'],
+    ['heavy','thug','punk','thug'],
+    ['thug','heavy','thug','heavy'],
+    ['boss_minion','thug','heavy'],
+    ['heavy','boss_minion','thug','heavy'],
+    ['boss_kyoko','thug','punk']
+  ],
+  // stage10: 廃工場（6波＋ボス）
+  [
+    ['heavy','thug','heavy','punk'],
+    ['boss_minion','thug','heavy'],
+    ['heavy','heavy','thug'],
+    ['boss_minion','heavy','boss_minion'],
+    ['heavy','boss_minion','heavy','thug'],
+    ['boss_minion','boss_minion','heavy','heavy'],
+    ['boss_juzo','heavy','thug']
+  ],
+  // stage11: 豪雨の河川敷（6波＋ボス）
+  [
+    ['thug','heavy','thug','heavy'],
+    ['heavy','boss_minion','thug'],
+    ['boss_minion','heavy','heavy'],
+    ['heavy','boss_minion','boss_minion'],
+    ['boss_minion','heavy','boss_minion','heavy'],
+    ['heavy','boss_minion','boss_minion','heavy'],
+    ['boss_musashi','heavy','boss_minion']
+  ],
+  // stage12: 極道の本家（6波＋ボス）
+  [
+    ['boss_minion','heavy','thug','heavy'],
+    ['heavy','boss_minion','heavy','thug'],
+    ['boss_minion','boss_minion','heavy'],
+    ['heavy','heavy','boss_minion','heavy'],
+    ['boss_minion','boss_minion','boss_minion'],
+    ['heavy','boss_minion','boss_minion','boss_minion'],
+    ['boss_ryugoro','heavy','boss_minion']
+  ],
+  // stage13: 氷点下の倉庫（6波＋ボス）
+  [
+    ['heavy','boss_minion','heavy','heavy'],
+    ['boss_minion','heavy','boss_minion'],
+    ['heavy','heavy','boss_minion','heavy'],
+    ['boss_minion','boss_minion','heavy','heavy'],
+    ['heavy','boss_minion','boss_minion','heavy'],
+    ['boss_minion','boss_minion','heavy','boss_minion'],
+    ['boss_hakuro','boss_minion','heavy']
+  ],
+  // stage14: 廃遊園地（6波＋ボス）
+  [
+    ['thug','boss_minion','thug','heavy'],
+    ['boss_minion','heavy','boss_minion'],
+    ['heavy','boss_minion','heavy','boss_minion'],
+    ['boss_minion','heavy','boss_minion','heavy'],
+    ['boss_minion','boss_minion','boss_minion','heavy'],
+    ['heavy','boss_minion','boss_minion','boss_minion'],
+    ['boss_pierron','boss_minion','heavy']
+  ],
+  // stage15: 貨物列車（6波＋ボス）
+  [
+    ['heavy','thug','heavy','heavy'],
+    ['boss_minion','heavy','boss_minion','heavy'],
+    ['heavy','boss_minion','heavy','boss_minion'],
+    ['boss_minion','boss_minion','heavy','boss_minion'],
+    ['heavy','boss_minion','boss_minion','heavy','boss_minion'],
+    ['boss_minion','boss_minion','heavy','boss_minion','heavy'],
+    ['boss_tetsuo','heavy','boss_minion']
+  ],
+  // stage16: 地下闘技場（6波＋ボス）
+  [
+    ['heavy','boss_minion','heavy','boss_minion','heavy'],
+    ['boss_minion','heavy','boss_minion','heavy'],
+    ['heavy','boss_minion','heavy','boss_minion','heavy'],
+    ['boss_minion','boss_minion','heavy','boss_minion'],
+    ['heavy','boss_minion','boss_minion','heavy','boss_minion'],
+    ['boss_minion','boss_minion','boss_minion','boss_minion'],
+    ['boss_gouki']
+  ],
+  // stage17: 崩壊する高層ビル（6波＋ボス）
+  [
+    ['boss_minion','heavy','boss_minion','heavy','boss_minion'],
+    ['heavy','boss_minion','heavy','boss_minion'],
+    ['boss_minion','boss_minion','heavy','boss_minion','heavy'],
+    ['heavy','boss_minion','boss_minion','heavy','boss_minion'],
+    ['boss_minion','boss_minion','boss_minion','heavy'],
+    ['heavy','boss_minion','boss_minion','boss_minion','heavy'],
+    ['boss_bomber']
+  ],
+  // stage18: 天空の神殿（6波＋ボス）
+  [
+    ['heavy','boss_minion','heavy','boss_minion','heavy'],
+    ['boss_minion','heavy','boss_minion','heavy','boss_minion'],
+    ['heavy','boss_minion','boss_minion','heavy','boss_minion'],
+    ['boss_minion','boss_minion','heavy','boss_minion','boss_minion'],
+    ['heavy','boss_minion','boss_minion','heavy','boss_minion'],
+    ['boss_minion','boss_minion','boss_minion','boss_minion','heavy'],
+    ['boss_mugen']
+  ],
+  // stage19: 神鬼の闘技場・真の最終（6波＋連続ボス）
+  [
+    ['heavy','boss_minion','heavy','boss_minion'],
+    ['boss_minion','heavy','boss_minion','heavy'],
+    ['heavy','heavy','boss_minion','boss_minion','heavy'],
+    ['boss_minion','boss_minion','heavy','boss_minion','heavy'],
+    ['heavy','boss_minion','boss_minion','boss_minion','heavy'],
+    ['boss_oyabun','boss_minion'],
+    ['boss_ganzo','heavy','boss_minion'],
+    ['boss_mitsuki','boss_minion','heavy'],
+    ['boss_shinki']
+  ]
+];
+
+function startWave(idx){
+  waveIdx=idx;
+  var s=STAGES[currentStage];
+  if(s.isSurvival){
+    // 雑魚波スタート
+    survivalInBossPhase=false;
+    waveActive=true;
+    spawnQ=(SURVIVAL_PHASE_ENEMIES[survivalPhase]||['thug']).slice();
+    spawnT=60;
+    ann('PHASE '+(survivalPhase+1)+' / '+s.survivalPhases,'#ff2200','');
+    return;
+  }
+  var waveDef=WAVE_DEFS[currentStage];
+  if(!waveDef||idx>=waveDef.length){stageComplete();return;}
+  waveActive=true;
+  if(!waveDef[idx]||!waveDef[idx].length){stageComplete();return;}
+  spawnQ=waveDef[idx].slice();
+  spawnT=60;
+  var isBoss=spawnQ.length===1&&CHAR_DEFS[spawnQ[0]]&&CHAR_DEFS[spawnQ[0]].isBoss;
+  ann(isBoss?'BOSS!!':'WAVE '+(idx+1),isBoss?'#c0392b':'#f1c40f');
+}
+
+function startSurvivalBoss(){
+  survivalInBossPhase=true;
+  waveActive=true;
+  var base=CHAR_DEFS.boss_survival;
+  var b={};for(var k in base)b[k]=base[k];
+  b.hp=base.hp+survivalPhase*40;
+  b.atk=base.atk+survivalPhase*4;
+  b.katk=base.katk+survivalPhase*6;
+  b.name='影鬼 剣造'+(survivalPhase>0?'【激怒Lv'+(survivalPhase+1)+'】':'');
+  CHAR_DEFS._svboss=b;
+  spawnQ=['_svboss'];
+  spawnT=40;
+  ann('BOSS!! フェイズ'+(survivalPhase+1),'#ff2200','');
+}
+
+function checkWaveClear(){
+  if(!waveActive)return;
+  var alive=enemies.filter(function(e){return !e.dead;});
+  if(alive.length!==0||spawnQ.length!==0)return;
+  waveActive=false;
+  var s=STAGES[currentStage];
+  if(s.isSurvival){
+    if(!survivalInBossPhase){
+      // 雑魚波クリア→ボス出現
+      ann('ボスが来る！','#ff2200','');
+      setTimeout(function(){startSurvivalBoss();},1500);
+    } else {
+      // ボス撃破→次フェイズ or クリア
+      survivalPhase++;
+      if(survivalPhase>=s.survivalPhases){
+        ann('全フェイズ制覇！！','#f1c40f','お前が最強だ！！');
+        setTimeout(function(){stageComplete();},2000);
+      } else {
+        ann('フェイズ'+survivalPhase+' クリア！','#4fa','まだ終わらん…！');
+        setTimeout(function(){startWave(0);},2000);
+      }
+    }
+    return;
+  }
+  var waveDef=WAVE_DEFS[currentStage];
+  if(!waveDef){stageComplete();return;}
+  if(waveIdx+1<waveDef.length){
+    ann('WAVE CLEAR！','#4fa','次の波が来る…');
+    setTimeout(function(){startWave(waveIdx+1);},1800);
+  } else {
+    var isFinalStage=currentStage===STAGES.length-1;
+    if(isFinalStage){
+      ann('神鬼を討つ！！','#ff0000','天下無双の証明！！');
+      setTimeout(function(){stageComplete(true);},2500);
+    } else {
+      ann('STAGE CLEAR！！','#f1c40f','やったぜ！！');
+      setTimeout(function(){stageComplete(false);},2000);
+    }
+  }
+}
+
+// ステージ帯ごとの衣装プール（雑魚敵用）
+// uniform は ST0-1 の punk のみ少量、それ以外は排除
+var ALL_OUTFITS=['suit','china','happi','tank','track','coat'];
+var STAGE_OUTFIT_POOLS=[
+  // st0-1: 学校・倉庫 → 制服あり、でも半分以下
+  {punk:['uniform','track','suit','happi'],thug:['suit','track','coat','happi'],heavy:['tank','track','happi','suit'],boss_minion:['happi','suit','track','coat']},
+  // st2-3: 廃校・サバイバル → コート・スーツ中心、制服なし
+  {punk:['coat','suit','track','happi'],thug:['suit','coat','china','track'],heavy:['tank','coat','happi','suit'],boss_minion:['happi','coat','suit','china']},
+  // st4-5: 歓楽街・埠頭 → スーツ・中華・コート
+  {punk:['suit','china','coat','happi'],thug:['suit','china','coat','track'],heavy:['tank','suit','china','coat'],boss_minion:['happi','suit','china','coat']},
+  // st6-7: 縁日・駐車場 → 法被・スーツ・中華
+  {punk:['happi','suit','china','track'],thug:['happi','suit','china','coat'],heavy:['tank','happi','suit','china'],boss_minion:['happi','happi','china','suit']},
+  // st8-9: 屋上・繁華街 → コート・スーツ・中華
+  {punk:['coat','suit','china','happi'],thug:['coat','suit','china','track'],heavy:['tank','coat','china','suit'],boss_minion:['coat','suit','china','happi']},
+  // st10-12: 工場・河川・極道 → 法被・タンク・コート・中華
+  {punk:['happi','coat','china','tank'],thug:['suit','happi','coat','china'],heavy:['tank','happi','coat','china'],boss_minion:['happi','coat','china','suit']},
+  // st13-15: 倉庫・遊園地・列車 → コート・中華・スーツ・法被
+  {punk:['coat','china','suit','happi'],thug:['coat','china','suit','happi'],heavy:['tank','coat','china','happi'],boss_minion:['coat','china','happi','suit']},
+  // st16-19: 闘技場〜最終 → 中華・コート・法被・タンク
+  {punk:['china','coat','happi','tank'],thug:['china','coat','happi','suit'],heavy:['tank','china','coat','happi'],boss_minion:['china','happi','coat','suit']},
+];
+function getOutfitPool(stageIdx){
+  if(stageIdx<=1) return STAGE_OUTFIT_POOLS[0];
+  if(stageIdx<=3) return STAGE_OUTFIT_POOLS[1];
+  if(stageIdx<=5) return STAGE_OUTFIT_POOLS[2];
+  if(stageIdx<=7) return STAGE_OUTFIT_POOLS[3];
+  if(stageIdx<=9) return STAGE_OUTFIT_POOLS[4];
+  if(stageIdx<=12) return STAGE_OUTFIT_POOLS[5];
+  if(stageIdx<=15) return STAGE_OUTFIT_POOLS[6];
+  return STAGE_OUTFIT_POOLS[7];
+}
+
+function spawnEnemy(typeKey){
+  var baseDef=CHAR_DEFS[typeKey];
+  if(!baseDef) return;
+  // 雑魚敵はdefをシャローコピーしてoutfitをランダム変更
+  var def=baseDef;
+  if(!baseDef.isBoss){
+    var pool=getOutfitPool(currentStage);
+    var outfits=pool[typeKey];
+    if(outfits&&outfits.length){
+      def={}; for(var k in baseDef) def[k]=baseDef[k];
+      def.outfit=outfits[rnd(outfits.length)];
+      // 衣装に合わせて色味も少しランダムに変化させる
+      var colVars={uniform:['#8b3a1a','#6b2a0a','#5a3020','#9b4a2a'],suit:['#2a2a3a','#3a3a4a','#1a2a3a','#4a3a2a'],tank:['#3a3a5a','#4a3a4a','#2a4a3a','#5a3a3a'],track:['#1a3a6a','#2a4a2a','#3a1a5a','#4a3a1a'],happi:['#6b2a2a','#8b4a1a','#5a1a2a','#7a3a1a'],china:['#5a1a2a','#2a1a5a','#1a3a2a','#4a2a1a'],coat:['#1a1a2a','#2a1a1a','#1a2a1a','#2a2a1a']};
+      var cv=colVars[def.outfit];
+      if(cv) def.col=cv[rnd(cv.length)];
+    }
+  }
+  var side=Math.random()<0.5?1:-1;
+  var spawnX=scrollX+(side===1?W+40:-40);
+  var groundY=H*0.7+rnd(H*0.15);
+  var e=new Fighter(def,spawnX,groundY);
+  e.facing=-side;
+  if(def.isBoss){
+    bossFight=true;
+    document.getElementById('boss-panel').style.display='flex';
+    document.getElementById('boss-name').textContent=def.name;
+    document.getElementById('boss-sub').textContent=STAGES[currentStage].bossTitle;
+    var rp=def.isShinki?'rgba(255,0,0,1)':def.isOyabun?'rgba(255,68,0,1)':def.isFinal?'rgba(212,160,23,1)':'rgba(192,57,43,1)';
+    document.getElementById('boss-hp').style.background='linear-gradient(90deg,#3a0000,'+rp+')';
+    ann(def.name,'#c0392b',STAGES[currentStage].bossTitle);
+  }
+  enemies.push(e);
+  fighters.push(e);
+  // 元警官は初期武器（警棒=pipe）
+  if(def.isExCop){e.weapon='pipe';e.wUses=99;}
+  // 通常敵の武器ドロップ確率
+  if(Math.random()<0.3&&!def.isBoss){
+    var wkeys=Object.keys(WEAPONS);
+    var wk=wkeys[rnd(wkeys.length)];
+    if(WEAPONS[wk]){e.weapon=wk;e.wUses=WEAPONS[wk].uses;}
+  }
+}
+
+
+function onBossKO(boss){
+  // 双子の場合：もう一人が生きていればパネルを維持
+  if(boss.def.isTwins){
+    var twinAlive=enemies.some(function(e){return !e.dead&&e.def.isTwins&&e!==boss;});
+    if(twinAlive){
+      burst(boss.x,boss.y-30,'#f1c40f',20,true); shake(12);
+      ann(boss.def.name+'KO！','#fa0','まだもう一人いるぞ！');
+      return; // パネルそのまま
+    }
+  }
+  document.getElementById('boss-panel').style.display='none';
+  burst(boss.x,boss.y-30,'#f1c40f',30,true); shake(20);
+  ann('BOSS撃破！！','#f1c40f',boss.def.name+'を倒した！！');
+  bossFight=false;
+}
+
+// ═══════════════════════════════════════
+//  GAME FLOW
+// ═══════════════════════════════════════
+function startStage(idx){
+  currentStage=idx;
+  score=0; gameTime=0;
+  var s=STAGES[idx];
+  // 完全リセット
+  fighters=[]; enemies=[]; allies=[]; wDrops=[]; healItems=[]; PARTS=[];
+  spawnQ=[]; waveIdx=0; waveActive=false; survivalPhase=0;
+  survivalInBossPhase=false; bossFight=false; scrollX=0;
+  document.getElementById('boss-panel').style.display='none';
+
+  // Player
+  var pDef=CHAR_DEFS.player;
+  player=new Fighter(pDef,80,H*0.75);
+  player.facing=1;
+  fighters.push(player);
+
+  // Allies（セットアップで選んだ味方）
+  allies=[];
+  var allySlots=[CHAR_DEFS.ally1,CHAR_DEFS.ally2].filter(Boolean);
+  var ax=[50,120];
+  allySlots.forEach(function(aDef,i){
+    var a=new Fighter(aDef,ax[i]||60,H*0.75);
+    a.facing=1;
+    // 味方の初期武器
+    if(aDef.allyWeapon&&WEAPONS[aDef.allyWeapon]){
+      a.weapon=aDef.allyWeapon;
+      a.wUses=WEAPONS[aDef.allyWeapon].uses;
+    }
+    allies.push(a);
+    fighters.push(a);
+  });
+
+  // 武器（セットアップで選んだ武器を最初から持つ）
+  if(setupSelectedWeapon&&WEAPONS[setupSelectedWeapon]){
+    player.weapon=setupSelectedWeapon;
+    player.wUses=WEAPONS[setupSelectedWeapon].uses;
+  }
+
+  // UI
+  document.getElementById('stage-label').textContent='STAGE '+(idx+1)+' — '+s.name;
+  if(s.isSurvival) document.getElementById('stage-label').style.color='#ff2200';
+  else document.getElementById('stage-label').style.color='';
+  buildAllyUI();
+  updateSpUI();
+  
+  showScreen(null);
+  gameMode='playing';
+  setMobileVisible(true); // ゲーム中のみ表示
+  setTimeout(function(){startWave(0);},1200);
+  ann('STAGE '+(idx+1),'var(--gold)',s.name);
+}
+
+function buildAllyUI(){
+  var ap=document.getElementById('ally-panel');
+  ap.innerHTML='';
+  allies.forEach(function(a){
+    var d=document.createElement('div');
+    d.className='ally-dot alive';d.title=a.def.name;
+    a._uiDot=d;ap.appendChild(d);
+  });
+}
+function updateAllyUI(){
+  allies.forEach(function(a){
+    if(!a._uiDot) return;
+    if(a.dead) a._uiDot.className='ally-dot';
+    else if(a.state==='hurt') a._uiDot.className='ally-dot hurt';
+    else a._uiDot.className='ally-dot alive';
+  });
+}
+function updateSpUI(){
+  if(!player) return;
+  var el=document.getElementById('sp-icons');
+  el.innerHTML='';
+  for(var i=0;i<player.def.maxSp;i++){
+    var d=document.createElement('span');d.className='sp-icon'+(i<player.spCharges?' ready':'');
+    d.textContent='⚡';el.appendChild(d);
+  }
+}
+function updateHUD(){
+  if(!player) return;
+  document.getElementById('p-hp').style.width=(player.hp/player.maxHp*100)+'%';
+  document.getElementById('p-sp').style.width=player.sp+'%';
+  document.getElementById('score-val').textContent=String(score).padStart(6,'0');
+  var s=STAGES[currentStage];
+  if(s&&s.isSurvival){
+    document.getElementById('stage-label').textContent=
+      'PHASE '+(survivalPhase+1)+' / '+s.survivalPhases+(bossFight?' 🔥BOSS':'');
+  }
+  updateAllyUI();
+  if(bossFight){
+    var boss=enemies.find(function(e){return e.isBoss&&!e.dead;});
+    if(boss) document.getElementById('boss-hp').style.width=(boss.hp/boss.maxHp*100)+'%';
+  }
+}
+
+function stageComplete(isFinalStage){
+  gameMode='result';
+  var sec=Math.floor(gameTime/60);
+  var m=Math.floor(sec/60),ss=sec%60;
+  if(isFinalStage){
+    document.getElementById('res-rank').textContent='天下制覇！！';
+    document.getElementById('res-rank').style.color='#ff0000';
+  } else {
+    document.getElementById('res-rank').textContent='勝利！';
+    document.getElementById('res-rank').style.color='#f1c40f';
+  }
+  document.getElementById('res-score').textContent='SCORE: '+String(score).padStart(6,'0');
+  document.getElementById('res-time').textContent='TIME: '+m+':'+(ss<10?'0':'')+ss;
+  showScreen('resultScreen');
+}
+function gameOver(){
+  gameMode='result';
+  document.getElementById('res-rank').textContent='敗北…';
+  document.getElementById('res-rank').style.color='#c0392b';
+  document.getElementById('res-score').textContent='SCORE: '+String(score).padStart(6,'0');
+  document.getElementById('res-time').textContent='--:--';
+  showScreen('resultScreen');
+}
+function goTitle(){
+  gameMode='title';
+  showScreen('titleScreen');
+  
+  document.getElementById('setupScreen').classList.remove('active');
+}
+function retryCurrent(){
+  openSetup(currentStage);
+}
+var _mobileEl=null;
+function setMobileVisible(v){
+  if(!_mobileEl) _mobileEl=document.getElementById('mobileCtrl');
+  _mobileEl.classList[v?'add':'remove']('show');
+}
+
+function showScreen(id){
+  ['titleScreen','resultScreen'].forEach(function(s){
+    document.getElementById(s).classList[s===id?'remove':'add']('hidden');
+  });
+  document.getElementById('setupScreen').classList.remove('active');
+  setMobileVisible(false); // タイトル・リザルト時は非表示
+}
+
+// ═══════════════════════════════════════
+//  SETUP SCREEN LOGIC
+// ═══════════════════════════════════════
+var setupStageIdx=0;
+var selectedCharKey='takeshi';
+var selectedAllyKeys=[];
+var selectedWpnKey=null; // nullは武器なし
+
+function openSetup(stageIdx){
+  setupStageIdx=stageIdx;
+  selectedCharKey=PLAYABLE_CHARS[0].key;
+  selectedAllyKeys=[];
+  selectedWpnKey=null;
+  setMobileVisible(false); // セットアップ中は非表示
+
+  // タイトル
+  document.getElementById('setup-stage-name').textContent=
+    'STAGE '+(stageIdx+1)+' ― '+STAGES[stageIdx].name;
+
+  // キャラグリッド
+  var cg=document.getElementById('charGrid');
+  cg.innerHTML='';
+  PLAYABLE_CHARS.forEach(function(c){
+    var card=document.createElement('div');
+    card.className='char-card'+(c.key===selectedCharKey?' selected':'');
+    var cv=document.createElement('canvas');
+    cv.width=44; cv.height=52;
+    drawMiniChar(cv.getContext('2d'),c,22,44);
+    var sel=document.createElement('span');sel.className='sel-mark';sel.textContent='★';
+    var nm=document.createElement('div');nm.className='cname';nm.textContent=c.name;
+    var tp=document.createElement('div');tp.className='ctype';tp.textContent=c.type;
+    var st=document.createElement('div');st.className='cstats';
+    st.textContent='HP:'+c.hp+' ATK:'+c.atk;
+    card.appendChild(cv);card.appendChild(sel);card.appendChild(nm);card.appendChild(tp);card.appendChild(st);
+    card.addEventListener('click',function(){
+      selectedCharKey=c.key;
+      cg.querySelectorAll('.char-card').forEach(function(x){x.classList.remove('selected');});
+      card.classList.add('selected');
+    });
+    cg.appendChild(card);
+  });
+
+  // 味方グリッド
+  buildAllyGrid();
+
+  // 武器グリッド
+  var wg=document.getElementById('wpnGrid');
+  wg.innerHTML='';
+  // 「なし」カード
+  var noCard=document.createElement('div');
+  noCard.className='wpn-card'+(selectedWpnKey===null?' selected':'');
+  noCard.innerHTML='<div class="wpn-icon">✊</div><div class="wname">なし</div><div class="wstats">素手</div><span class="sel-mark">✓</span>';
+  noCard.addEventListener('click',function(){
+    selectedWpnKey=null;
+    wg.querySelectorAll('.wpn-card').forEach(function(x){x.classList.remove('selected');});
+    noCard.classList.add('selected');
+  });
+  wg.appendChild(noCard);
+  Object.keys(WEAPONS).forEach(function(k){
+    var w=WEAPONS[k];
+    var card=document.createElement('div');
+    card.className='wpn-card'+(selectedWpnKey===k?' selected':'');
+    var ic=document.createElement('div');ic.className='wpn-icon';ic.textContent=WPN_ICONS[k]||'⚔️';
+    var nm=document.createElement('div');nm.className='wname';nm.textContent=w.label;
+    var st=document.createElement('div');st.className='wstats';st.textContent='使用:'+w.uses+'回';
+    var dm=document.createElement('div');dm.className='wdmg';dm.textContent='威力×'+w.dmg.toFixed(1);
+    var sel=document.createElement('span');sel.className='sel-mark';sel.textContent='✓';
+    card.appendChild(ic);card.appendChild(nm);card.appendChild(st);card.appendChild(dm);card.appendChild(sel);
+    card.addEventListener('click',function(){
+      selectedWpnKey=k;
+      wg.querySelectorAll('.wpn-card').forEach(function(x){x.classList.remove('selected');});
+      card.classList.add('selected');
+    });
+    wg.appendChild(card);
+  });
+
+  // 戻るボタン
+  document.getElementById('setupBackBtn').onclick=function(){
+    document.getElementById('setupScreen').classList.remove('active');
+    showScreen('titleScreen');
+    gameMode='title';
+  };
+
+  // 出撃ボタン
+  document.getElementById('setupStartBtn').onclick=function(){
+    launchStage();
+  };
+
+  // 画面切り替え
+  ['titleScreen','resultScreen'].forEach(function(s){
+    document.getElementById(s).classList.add('hidden');
+  });
+  document.getElementById('setupScreen').classList.add('active');
+}
+
+function buildAllyGrid(){
+  var ag=document.getElementById('allyGrid');
+  ag.innerHTML='';
+  ALLY_CHARS.forEach(function(c){
+    var card=document.createElement('div');
+    var isSel=selectedAllyKeys.indexOf(c.key)!==-1;
+    var isNone=c.isEmpty;
+    card.className='ally-card'+(isSel?' selected':'')+(isNone?' ally-none':'');
+    if(!isNone){
+      var cv=document.createElement('canvas');
+      cv.width=44;cv.height=52;
+      drawMiniChar(cv.getContext('2d'),c,22,44);
+      card.appendChild(cv);
+    } else {
+      var blank=document.createElement('div');
+      blank.style.cssText='width:44px;height:52px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#333;margin:0 auto';
+      blank.textContent='✕';
+      card.appendChild(blank);
+    }
+    var sn=document.createElement('span');sn.className='sel-num';
+    sn.textContent=(selectedAllyKeys.indexOf(c.key)+1)||'';
+    var nm=document.createElement('div');nm.className='cname';nm.textContent=c.name;
+    var tp=document.createElement('div');tp.className='ctype';tp.textContent=c.type;
+    card.appendChild(sn);card.appendChild(nm);card.appendChild(tp);
+    card.addEventListener('click',function(){
+      if(isNone){ selectedAllyKeys=[]; buildAllyGrid(); return; }
+      var idx=selectedAllyKeys.indexOf(c.key);
+      if(idx!==-1){ selectedAllyKeys.splice(idx,1); }
+      else if(selectedAllyKeys.length<2){ selectedAllyKeys.push(c.key); }
+      buildAllyGrid();
+    });
+    ag.appendChild(card);
+  });
+  document.getElementById('allyLimitTxt').textContent=
+    '選択中: '+selectedAllyKeys.length+' / 2';
+}
+
+function drawMiniChar(ctx,def,cx,cy){
+  // シンプルなキャラプレビュー
+  var w=def.w||20, h=def.h||50;
+  var sc=Math.min(40/w, 48/h);
+  var sw=w*sc, sh=h*sc;
+  var bx=cx-sw/2, by=cy-sh*0.1;
+  ctx.save();
+  // 体
+  ctx.fillStyle=def.col;
+  ctx.fillRect(bx,by-sh*0.5,sw,sh*0.52);
+  // 頭
+  ctx.fillStyle=def.col2;
+  ctx.beginPath();
+  ctx.arc(cx,by-sh*0.58,sw*0.42,0,Math.PI*2);
+  ctx.fill();
+  // 髪
+  ctx.fillStyle=def.hairCol||'#1a1008';
+  if(def.isQueen){
+    ctx.beginPath();ctx.ellipse(cx,by-sh*0.66,sw*0.46,sw*0.28,0,0,Math.PI*2);ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(bx+sw*0.1,by-sh*0.56);
+    ctx.quadraticCurveTo(cx,by-sh*0.8,bx+sw*0.9,by-sh*0.56);
+    ctx.fill();
+  }
+  // 足
+  ctx.fillStyle=def.col;
+  ctx.fillRect(bx+sw*0.1,by,sw*0.35,sh*0.35);
+  ctx.fillRect(bx+sw*0.55,by,sw*0.35,sh*0.35);
+  ctx.restore();
+}
+
+function launchStage(){
+  // 選んだキャラでCHAR_DEFS.playerを上書き
+  var pc=PLAYABLE_CHARS.filter(function(c){return c.key===selectedCharKey;})[0]||PLAYABLE_CHARS[0];
+  CHAR_DEFS.player=Object.assign({},pc,{sp:0,special:pc.special||'必殺技',specialCol:pc.specialCol||'#f1c40f'});
+
+  // 味方設定
+  var allyDefs=selectedAllyKeys.map(function(k){
+    return ALLY_CHARS.filter(function(c){return c.key===k;})[0];
+  }).filter(Boolean);
+  CHAR_DEFS.ally1=allyDefs[0]||null;
+  CHAR_DEFS.ally2=allyDefs[1]||null;
+
+  // 武器設定
+  setupSelectedWeapon=selectedWpnKey;
+
+  document.getElementById('setupScreen').classList.remove('active');
+  startStage(setupStageIdx);
+}
+
+var setupSelectedWeapon=null; // startStageで参照
+
+// ═══════════════════════════════════════
+//  SCROLL CAMERA
+// ═══════════════════════════════════════
+function updateCamera(){
+  if(!player) return;
+  var targetX=player.x-W*0.38;
+  scrollX+=(targetX-scrollX)*0.08;
+  scrollX=clamp(scrollX,0,stageWidth-W);
+}
+
+// ═══════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════
+var lastT=0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  var dt=Math.min((ts-lastT)/16.67,3);lastT=ts;
+
+  // shake
+  if(SHMAG>0){SHX=(Math.random()-.5)*SHMAG;SHY=(Math.random()-.5)*SHMAG;SHMAG*=0.75;if(SHMAG<0.5)SHMAG=0;}
+  else{SHX=0;SHY=0;}
+
+  ctx.save();ctx.translate(SHX,SHY);
+
+  if(gameMode!=='playing'){
+    ctx.fillStyle='#0a0804';ctx.fillRect(0,0,W,H);
+    ctx.restore();return;
+  }
+
+  try{
+
+  gameTime++;
+  updateCamera();
+
+  // Spawn queue
+  if(waveActive&&spawnQ.length>0){
+    spawnT--;
+    var onScreen=enemies.filter(function(e){return !e.dead;}).length;
+    if(spawnT<=0&&onScreen<getMaxOnScreen()){
+      spawnEnemy(spawnQ.shift());
+      spawnT=25+rnd(20);
+    }
+  }
+
+  // Draw BG
+  drawBG(currentStage);
+
+  // Weapon drops
+  wDrops.forEach(drawWDrop);
+  drawHealItems();
+
+  // Update fighters
+  playerInput();
+  allies.forEach(allyAI);
+  enemies.forEach(enemyAI);
+  fighters.forEach(updateFighter);
+  updateGSwing(player);
+
+  // Sort by Y (depth)
+  fighters.sort(function(a,b){return a.y-b.y;});
+  fighters.forEach(drawFighter);
+
+  // Particles
+  PARTS=PARTS.filter(function(p){
+    p.x+=p.vx;p.y+=p.vy;p.vx*=0.92;p.vy=p.vy*0.92+(p.spark?0:0.1);
+    p.life-=0.035;
+    if(p.life<=0) return false;
+    ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.col;
+    ctx.beginPath();ctx.arc(p.x-SHX,p.y-SHY,p.r*p.life,0,Math.PI*2);ctx.fill();
+    return p.life>0;
+  });
+  ctx.globalAlpha=1;
+
+  checkWaveClear();
+  updateHUD();
+
+  // Check game over
+  if(player.dead){
+    var allAlliesDead=allies.every(function(a){return a.dead;});
+    if(allAlliesDead||allies.length===0){
+      gameMode='gameover';
+      setTimeout(gameOver,2000);
+      ann('KO…','#c0392b','散った…');
+    }
+  }
+
+  ctx.restore();
+  }catch(err){
+    ctx.restore();
+    // エラーを画面に表示してゲームを止める
+    gameMode='error';
+    ctx.fillStyle='rgba(0,0,0,0.85)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#e74c3c';ctx.font='bold 14px monospace';ctx.textAlign='center';
+    ctx.fillText('ERROR: '+err.message,W/2,H/2-20);
+    ctx.fillStyle='#aaa';ctx.font='11px monospace';
+    var stk=(err.stack||'').split('\n')[1]||'';
+    ctx.fillText(stk.trim().substring(0,60),W/2,H/2+10);
+    ctx.fillText('画面をタップ/クリックで再起動',W/2,H/2+40);
+    // canvas_onclick removed
+    document.getElementById('c').onclick=function(){location.reload();};
+    console.error(err);
+  }
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
