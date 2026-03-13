@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スライドパズル</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --tile: #1e1e2e;
+    --tile-hover: #252538;
+    --accent: #e8c84a;
+    --accent2: #4ae8c8;
+    --text: #f0ede0;
+    --muted: #6b6b80;
+    --border: #2a2a3e;
+    --glow: rgba(232, 200, 74, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 60% 40%, rgba(232,200,74,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 20% 80%, rgba(74,232,200,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    animation: bgshift 12s ease-in-out infinite alternate;
+  }
+
+  @keyframes bgshift {
+    from { transform: translate(0, 0); }
+    to { transform: translate(3%, 2%); }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  header {
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-shadow: 0 0 40px rgba(232,200,74,0.3);
+    line-height: 1;
+  }
+
+  .subtitle {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .stats {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+    line-height: 1.1;
+  }
+
+  .board-wrapper {
+    position: relative;
+  }
+
+  .board-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent));
+    opacity: 0.3;
+    z-index: -1;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    background: var(--surface);
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .tile {
+    width: clamp(64px, 16vw, 88px);
+    height: clamp(64px, 16vw, 88px);
+    background: var(--tile);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    letter-spacing: 0.05em;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s, transform 0.12s, box-shadow 0.12s, color 0.12s;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tile::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    right: 0; height: 40%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+    border-radius: 8px 8px 0 0;
+    pointer-events: none;
+  }
+
+  .tile:hover:not(.empty) {
+    background: var(--tile-hover);
+    transform: scale(0.96);
+    box-shadow: 0 0 20px var(--glow);
+    color: var(--accent);
+  }
+
+  .tile.movable {
+    background: #1a1a2a;
+    border-color: rgba(232,200,74,0.3);
+    cursor: pointer;
+  }
+
+  .tile.movable:hover {
+    background: #22223a;
+    border-color: rgba(232,200,74,0.6);
+    box-shadow: 0 0 20px rgba(232,200,74,0.2);
+    color: var(--accent);
+  }
+
+  .tile.empty {
+    background: #0d0d14;
+    border-color: #16161f;
+    cursor: default;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  }
+
+  .tile.slide {
+    animation: slidepop 0.12s ease-out;
+  }
+
+  @keyframes slidepop {
+    0% { transform: scale(0.94); }
+    60% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn {
+    padding: 10px 24px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface);
+    color: var(--muted);
+  }
+
+  .btn:hover {
+    background: var(--tile-hover);
+    color: var(--text);
+    border-color: var(--muted);
+  }
+
+  .btn.primary {
+    background: var(--accent);
+    color: #0a0a0f;
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+
+  .btn.primary:hover {
+    background: #f0d060;
+    box-shadow: 0 0 24px rgba(232,200,74,0.3);
+    color: #0a0a0f;
+  }
+
+  /* Win overlay */
+  .win-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .win-overlay.show {
+    display: flex;
+    animation: fadein 0.4s ease;
+  }
+
+  @keyframes fadein {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .win-card {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 40px 52px;
+    text-align: center;
+    box-shadow: 0 0 80px rgba(232,200,74,0.2);
+  }
+
+  .win-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3.5rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 30px rgba(232,200,74,0.5);
+  }
+
+  .win-stats {
+    margin: 16px 0 28px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .win-stats span {
+    color: var(--accent2);
+    font-weight: 700;
+  }
+
+  .difficulty-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .diff-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .diff-btn {
+    padding: 4px 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+
+  .diff-btn.active {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+
+  .diff-btn:hover { color: var(--text); border-color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>SLIDE PUZZLE</h1>
+    <div class="subtitle">数字を順番に並べよう</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">手数</div>
+      <div class="stat-value" id="moves">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">タイム</div>
+      <div class="stat-value" id="timer">0:00</div>
+    </div>
+  </div>
+
+  <div class="board-wrapper">
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="difficulty-row">
+    <span class="diff-label">難易度</span>
+    <button class="diff-btn active" onclick="setDifficulty(20)">やさしい</button>
+    <button class="diff-btn" onclick="setDifficulty(60)">ふつう</button>
+    <button class="diff-btn" onclick="setDifficulty(200)">むずかしい</button>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" onclick="newGame()">NEW GAME</button>
+  </div>
+</div>
+
+<!-- Win -->
+<div class="win-overlay" id="winOverlay">
+  <div class="win-card">
+    <div class="win-title">CLEAR!</div>
+    <div class="win-stats">
+      <span id="winMoves">0</span> 手・<span id="winTime">0:00</span>
+    </div>
+    <button class="btn primary" onclick="newGame(); document.getElementById('winOverlay').classList.remove('show')">もう一度</button>
+  </div>
+</div>
+
+<script>
+  let tiles = [];
+  let moves = 0;
+  let seconds = 0;
+  let timerInterval = null;
+  let gameStarted = false;
+  let shuffleMoves = 60;
+
+  function setDifficulty(n) {
+    shuffleMoves = n;
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    newGame();
+  }
+
+  function newGame() {
+    clearInterval(timerInterval);
+    moves = 0;
+    seconds = 0;
+    gameStarted = false;
+    document.getElementById('moves').textContent = '0';
+    document.getElementById('timer').textContent = '0:00';
+    tiles = Array.from({length: 15}, (_, i) => i + 1).concat([0]);
+    shuffle();
+    render();
+  }
+
+  function shuffle() {
+    let blank = 15;
+    const dirs = [-4, 4, -1, 1];
+    for (let i = 0; i < shuffleMoves * 10; i++) {
+      const r = dirs[Math.floor(Math.random() * 4)];
+      const nb = blank + r;
+      if (nb < 0 || nb > 15) continue;
+      if (r === 1 && blank % 4 === 3) continue;
+      if (r === -1 && blank % 4 === 0) continue;
+      tiles[blank] = tiles[nb];
+      tiles[nb] = 0;
+      blank = nb;
+    }
+  }
+
+  function isMovable(idx) {
+    const blank = tiles.indexOf(0);
+    const dr = Math.abs(Math.floor(idx / 4) - Math.floor(blank / 4));
+    const dc = Math.abs(idx % 4 - blank % 4);
+    return (dr === 1 && dc === 0) || (dr === 0 && dc === 1);
+  }
+
+  function move(idx) {
+    if (!isMovable(idx)) return;
+    if (!gameStarted) {
+      gameStarted = true;
+      timerInterval = setInterval(() => {
+        seconds++;
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        document.getElementById('timer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      }, 1000);
+    }
+    const blank = tiles.indexOf(0);
+    tiles[blank] = tiles[idx];
+    tiles[idx] = 0;
+    moves++;
+    document.getElementById('moves').textContent = moves;
+    render(idx);
+    if (checkWin()) {
+      clearInterval(timerInterval);
+      setTimeout(() => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        document.getElementById('winMoves').textContent = moves;
+        document.getElementById('winTime').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+        document.getElementById('winOverlay').classList.add('show');
+      }, 300);
+    }
+  }
+
+  function checkWin() {
+    return tiles.slice(0, 15).every((v, i) => v === i + 1) && tiles[15] === 0;
+  }
+
+  function render(movedIdx = -1) {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    tiles.forEach((val, idx) => {
+      const tile = document.createElement('div');
+      tile.className = 'tile' + (val === 0 ? ' empty' : '') + (isMovable(idx) ? ' movable' : '') + (idx === movedIdx ? ' slide' : '');
+      if (val !== 0) {
+        tile.textContent = val;
+        tile.onclick = () => move(idx);
+      }
+      board.appendChild(tile);
+    });
+  }
+
+  newGame();
+</script>
+</body>
+</html>
