@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>絵合わせゲーム</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #e8f4e8;
+    --card-bg: #ffffff;
+    --card-back: #4a9e6a;
+    --card-back2: #3a8a5a;
+    --text: #2c2c2c;
+    --muted: #777;
+    --accent: #e07030;
+    --correct: #4a9e6a;
+    --wrong: #d04040;
+    --shadow: 0 4px 20px rgba(0,0,0,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px 16px 40px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 540px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .header {
+    text-align: center;
+  }
+
+  .title {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--text);
+  }
+
+  .title span { color: var(--correct); }
+
+  .subtitle {
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* Stats */
+  .stats {
+    display: flex;
+    gap: 16px;
+    background: white;
+    border-radius: 16px;
+    padding: 14px 28px;
+    box-shadow: var(--shadow);
+    width: 100%;
+    justify-content: center;
+  }
+
+  .stat { text-align: center; }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--text);
+    line-height: 1.1;
+  }
+
+  /* Difficulty */
+  .diff-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .diff-label {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  .diff-btn {
+    padding: 8px 20px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    border: 2px solid #ccc;
+    border-radius: 999px;
+    background: white;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .diff-btn.active {
+    border-color: var(--correct);
+    color: var(--correct);
+    background: #edfaf3;
+  }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .grid.g4 { grid-template-columns: repeat(4, 1fr); }
+  .grid.g4x4 { grid-template-columns: repeat(4, 1fr); }
+  .grid.g5 { grid-template-columns: repeat(5, 1fr); }
+
+  /* Card */
+  .card-wrap {
+    perspective: 600px;
+    aspect-ratio: 1;
+  }
+
+  .card-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.45s cubic-bezier(0.4,0,0.2,1);
+    cursor: pointer;
+  }
+
+  .card-wrap.flipped .card-inner {
+    transform: rotateY(180deg);
+  }
+
+  .card-wrap.matched .card-inner {
+    transform: rotateY(180deg);
+    cursor: default;
+  }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .card-back {
+    background: linear-gradient(135deg, var(--card-back), var(--card-back2));
+    box-shadow: var(--shadow);
+    font-size: 1.8rem;
+    border: 3px solid rgba(255,255,255,0.3);
+  }
+
+  .card-back::after {
+    content: '🌸';
+    opacity: 0.5;
+  }
+
+  .card-front {
+    background: white;
+    box-shadow: var(--shadow);
+    transform: rotateY(180deg);
+    font-size: clamp(1.8rem, 6vw, 2.8rem);
+    border: 3px solid #eee;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .card-wrap.matched .card-front {
+    background: #edfaf3;
+    border-color: var(--correct);
+    animation: matchPop 0.4s ease;
+  }
+
+  @keyframes matchPop {
+    0% { transform: rotateY(180deg) scale(1); }
+    50% { transform: rotateY(180deg) scale(1.12); }
+    100% { transform: rotateY(180deg) scale(1); }
+  }
+
+  .card-wrap.wrong-flash .card-front {
+    animation: wrongShake 0.4s ease;
+  }
+
+  @keyframes wrongShake {
+    0%,100% { transform: rotateY(180deg) translateX(0); }
+    25% { transform: rotateY(180deg) translateX(-6px); }
+    75% { transform: rotateY(180deg) translateX(6px); }
+  }
+
+  /* Message */
+  .message {
+    font-size: 1.3rem;
+    font-weight: 900;
+    min-height: 1.8em;
+    color: var(--correct);
+    text-align: center;
+    animation: fadeMsg 0.3s ease;
+  }
+
+  @keyframes fadeMsg { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* Buttons */
+  .btn-main {
+    padding: 18px 48px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 900;
+    background: var(--correct);
+    color: white;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(74,158,106,0.35);
+    transition: transform 0.1s, box-shadow 0.1s;
+    letter-spacing: 0.05em;
+  }
+
+  .btn-main:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74,158,106,0.45); }
+  .btn-main:active { transform: translateY(0); }
+
+  /* Result */
+  .result-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .result-overlay.show { display: flex; }
+
+  .result-card {
+    background: white;
+    border-radius: 24px;
+    padding: 40px 36px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: popIn 0.4s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    max-width: 340px;
+    width: 90%;
+  }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.9) translateY(16px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .result-emoji { font-size: 4.5rem; }
+  .result-title { font-size: 2rem; font-weight: 900; color: var(--text); }
+  .result-body { font-size: 1.05rem; color: var(--muted); line-height: 1.8; }
+  .result-body b { color: var(--text); font-size: 1.3rem; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="title">絵<span>合わせ</span></div>
+    <div class="subtitle">同じ絵を２枚見つけよう！</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">てびき</div>
+      <div class="stat-value" id="moves">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">そろった</div>
+      <div class="stat-value" id="matched">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">のこり</div>
+      <div class="stat-value" id="remain">0</div>
+    </div>
+  </div>
+
+  <div class="diff-row">
+    <span class="diff-label">むずかしさ：</span>
+    <button class="diff-btn active" onclick="setDiff(8, this)">かんたん<br><small>8まい</small></button>
+    <button class="diff-btn" onclick="setDiff(16, this)">ふつう<br><small>16まい</small></button>
+    <button class="diff-btn" onclick="setDiff(20, this)">むずかしい<br><small>20まい</small></button>
+  </div>
+
+  <div class="message" id="message">カードをめくってね！</div>
+
+  <div class="grid g4" id="grid"></div>
+
+  <button class="btn-main" onclick="newGame()">もう一度あそぶ</button>
+</div>
+
+<!-- Result -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-card">
+    <div class="result-emoji">🎊</div>
+    <div class="result-title">ぜんぶそろった！</div>
+    <div class="result-body" id="resultBody"></div>
+    <button class="btn-main" onclick="newGame(); document.getElementById('resultOverlay').classList.remove('show')">もう一度</button>
+  </div>
+</div>
+
+<script>
+  const EMOJI_POOL = [
+    '🌸','🍎','🐶','🌟','🎵','🍓','🐱','🌻',
+    '🦋','🍊','🐸','⛄','🎈','🍇','🐰','🌈',
+    '🐥','🍉','🦊','🌙','🎀','🍒','🐼','🦁',
+    '🐠','🍋','🌺','🎃'
+  ];
+
+  let totalPairs = 8;
+  let cards = [];
+  let flipped = [];
+  let matched = 0;
+  let moves = 0;
+  let lock = false;
+
+  function setDiff(n, btn) {
+    totalPairs = n;
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    newGame();
+  }
+
+  function newGame() {
+    matched = 0; moves = 0; flipped = []; lock = false;
+    updateStats();
+    buildGrid();
+    document.getElementById('message').textContent = 'カードをめくってね！';
+  }
+
+  function updateStats() {
+    document.getElementById('moves').textContent = moves;
+    document.getElementById('matched').textContent = matched;
+    document.getElementById('remain').textContent = totalPairs - matched;
+  }
+
+  function buildGrid() {
+    const grid = document.getElementById('grid');
+    // Pick emojis
+    const emojis = EMOJI_POOL.slice(0, totalPairs);
+    cards = shuffle([...emojis, ...emojis]).map((e, i) => ({ id: i, emoji: e, flipped: false, matched: false }));
+
+    // Set grid columns
+    grid.className = 'grid';
+    if (totalPairs === 8) grid.classList.add('g4');
+    else if (totalPairs === 16) grid.classList.add('g4x4');
+    else grid.classList.add('g5');
+
+    grid.innerHTML = '';
+    cards.forEach(card => {
+      const wrap = document.createElement('div');
+      wrap.className = 'card-wrap';
+      wrap.dataset.id = card.id;
+      wrap.innerHTML = `
+        <div class="card-inner">
+          <div class="card-face card-back"></div>
+          <div class="card-face card-front">${card.emoji}</div>
+        </div>`;
+      wrap.onclick = () => flipCard(card.id);
+      grid.appendChild(wrap);
+    });
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function flipCard(id) {
+    if (lock) return;
+    const card = cards[id];
+    if (card.flipped || card.matched) return;
+
+    card.flipped = true;
+    getEl(id).classList.add('flipped');
+    flipped.push(id);
+
+    if (flipped.length === 2) {
+      moves++;
+      updateStats();
+      lock = true;
+      const [a, b] = flipped;
+      if (cards[a].emoji === cards[b].emoji) {
+        // Match!
+        setTimeout(() => {
+          getEl(a).classList.add('matched');
+          getEl(b).classList.add('matched');
+          cards[a].matched = true;
+          cards[b].matched = true;
+          matched++;
+          flipped = [];
+          lock = false;
+          updateStats();
+          document.getElementById('message').textContent = 'そろった！ 🎉';
+          if (matched === totalPairs) setTimeout(showResult, 600);
+        }, 500);
+      } else {
+        // No match
+        document.getElementById('message').textContent = 'ちがうよ…もう一度！';
+        getEl(a).classList.add('wrong-flash');
+        getEl(b).classList.add('wrong-flash');
+        setTimeout(() => {
+          getEl(a).classList.remove('flipped', 'wrong-flash');
+          getEl(b).classList.remove('flipped', 'wrong-flash');
+          cards[a].flipped = false;
+          cards[b].flipped = false;
+          flipped = [];
+          lock = false;
+          document.getElementById('message').textContent = 'カードをめくってね！';
+        }, 900);
+      }
+    }
+  }
+
+  function getEl(id) {
+    return document.querySelector(`.card-wrap[data-id="${id}"]`);
+  }
+
+  function showResult() {
+    document.getElementById('resultBody').innerHTML =
+      `${totalPairs}ペアを <b>${moves}回</b> でそろえました！`;
+    document.getElementById('resultOverlay').classList.add('show');
+  }
+
+  newGame();
+</script>
+</body>
+</html>
